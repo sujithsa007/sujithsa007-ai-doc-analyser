@@ -287,3 +287,6 @@ export const uploadDocument = async (file) => {
     }
   }
 };
+
+// Export the configured client for testing and advanced usage (e.g., custom stubbing)
+export { apiClient };

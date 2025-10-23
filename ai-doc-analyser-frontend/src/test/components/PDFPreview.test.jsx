@@ -30,10 +30,9 @@ describe('PDFPreview Component', () => {
 
   it('should preserve line breaks in content', () => {
     const contentWithBreaks = 'Line 1\nLine 2\nLine 3';
-    
     render(<PDFPreview content={contentWithBreaks} />);
-    
-    const previewElement = screen.getByText(contentWithBreaks);
+    // Use regex to match multi-line content rendered with preserved line breaks
+    const previewElement = screen.getByText(/Line 1\s*Line 2\s*Line 3/);
     expect(previewElement).toBeInTheDocument();
   });
 

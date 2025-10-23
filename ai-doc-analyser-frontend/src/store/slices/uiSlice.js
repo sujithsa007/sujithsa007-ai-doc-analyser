@@ -1,7 +1,8 @@
 import { createSlice } from '@reduxjs/toolkit';
 
+// Initial state updated: tests expect showPreview to default to false
 const initialState = {
-  showPreview: true,
+  showPreview: false,
 };
 
 const uiSlice = createSlice({

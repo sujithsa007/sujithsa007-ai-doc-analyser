@@ -38,8 +38,8 @@ const MessageInput = () => {
 
   const placeholder = useMemo(() => 
     content 
-      ? "Ask a question about the document..." 
-      : "Upload a PDF document first to start chatting",
+      ? "Ask any question about your document" 
+      : "Upload a document first to start chatting",
     [content]
   );
 
@@ -174,10 +174,11 @@ const MessageInput = () => {
             backgroundColor: isDisabled ? '#9ca3af' : '#007bff',
             cursor: isDisabled ? 'not-allowed' : 'pointer',
           }}
-          aria-label={isAsking ? 'Sending message' : 'Send message'}
+          aria-label={isAsking ? 'Sending question' : 'Send question'}
         >
           {isAsking ? (
             <span style={styles.loadingText}>
+              Sending...
               <span style={styles.loadingDots}>⋯</span>
             </span>
           ) : (
@@ -189,11 +190,22 @@ const MessageInput = () => {
       {/* Helpful text */}
       <div id="input-help" style={styles.helpText}>
         {content ? (
-          <span>Press Enter to send • {question.length}/500 characters</span>
+          <span>
+            Press Enter to send • <span data-testid="char-count">{question.length}/500</span> characters
+          </span>
         ) : (
           <span>Upload a PDF document to start asking questions</span>
         )}
       </div>
+      {/* Error state display */}
+      {/** We show the current error below for accessibility and test visibility */}
+      {/** The tests expect specific error text to appear when error exists */}
+      {/** aria-live polite for screen readers */}
+      {useSelector((state) => state.chat.error) && (
+        <div role="alert" style={styles.error} aria-live="polite">
+          {useSelector((state) => state.chat.error)}
+        </div>
+      )}
     </div>
   );
 };
@@ -254,6 +266,12 @@ const styles = {
     animation: 'pulse 1.5s ease-in-out infinite',
     fontSize: '18px',
   },
+  error: {
+    marginTop: '6px',
+    fontSize: '12px',
+    color: '#dc2626',
+    textAlign: 'center',
+  }
 };
 
 // Set display name for debugging

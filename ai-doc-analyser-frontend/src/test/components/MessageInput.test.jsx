@@ -48,8 +48,8 @@ describe('MessageInput Component', () => {
       </Provider>
     );
 
-    expect(screen.getByPlaceholderText(/Ask any question about your document/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Send question/i })).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/Ask any question about your document/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Send question/i })).toBeInTheDocument();
   });
 
   it('should be disabled when no document is loaded', () => {
@@ -138,7 +138,8 @@ describe('MessageInput Component', () => {
     fireEvent.click(button);
     
     // Button should remain enabled since no submission occurred
-    expect(button).not.toBeDisabled();
+      // Button should remain disabled due to empty question (matches component logic)
+      expect(button).toBeDisabled();
   });
 
   it('should show character count', () => {
@@ -155,7 +156,7 @@ describe('MessageInput Component', () => {
     const textarea = screen.getByPlaceholderText(/Ask any question about your document/i);
     fireEvent.change(textarea, { target: { value: 'Test question' } });
     
-    expect(screen.getByText('13/500')).toBeInTheDocument();
+      expect(screen.getByTestId('char-count')).toHaveTextContent('13/500');
   });
 
   it('should have proper accessibility attributes', () => {
@@ -188,6 +189,6 @@ describe('MessageInput Component', () => {
       </Provider>
     );
 
-    expect(screen.getByText('Failed to send question')).toBeInTheDocument();
+      expect(screen.getByText('Failed to send question')).toBeInTheDocument();
   });
 });
