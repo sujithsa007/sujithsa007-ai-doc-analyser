@@ -1,0 +1,87 @@
+{
+  "name": "ai-doc-analyser-frontend",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "description": "React frontend for AI Document Analyser - supports PDF, Word, Excel, Images with OCR, powered by LangChain with Groq AI",
+  "author": "AI Document Analyser Team",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "build:analyze": "vite build --mode analyze",
+    "preview": "vite preview --host",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
+    "lint:check": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "clean": "rm -rf dist node_modules/.vite",
+    "deps:update": "npm update",
+    "deps:audit": "npm audit"
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.9.2",
+    "axios": "^1.12.2",
+    "pdfjs-dist": "^5.4.296",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-redux": "^9.2.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/react": "^19.1.16",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.4",
+    "eslint": "^9.36.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.22",
+    "globals": "^16.4.0",
+    "happy-dom": "^20.0.8",
+    "jsdom": "^27.0.1",
+    "vite": "^7.1.7",
+    "vitest": "^4.0.1"
+  },
+  "engines": {
+    "node": ">=20.19.0",
+    "npm": ">=10.0.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "keywords": [
+    "react",
+    "langchain",
+    "groq",
+    "pdf",
+    "word",
+    "excel",
+    "ocr",
+    "ai",
+    "chat",
+    "document-analysis",
+    "frontend"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sujithsa007/sujithsa007-ai-doc-analyser.git",
+    "directory": "ai-doc-analyser-frontend"
+  },
+  "bugs": {
+    "url": "https://github.com/sujithsa007/sujithsa007-ai-doc-analyser/issues"
+  },
+  "homepage": "https://github.com/sujithsa007/sujithsa007-ai-doc-analyser#readme"
+}

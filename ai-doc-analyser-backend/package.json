@@ -1,0 +1,69 @@
+{
+  "name": "ai-doc-analyser-backend",
+  "version": "2.0.0",
+  "type": "module",
+  "main": "index.js",
+  "description": "Express.js backend for AI Document Analyser - supports PDF, Word, Excel, Images with OCR, powered by LangChain with Groq AI",
+  "author": "AI Document Analyser Team",
+  "license": "MIT",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "dev:debug": "node --inspect --watch index.js",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest --coverage",
+    "test:watch": "vitest --watch",
+    "lint": "echo 'No linting configured'",
+    "clean": "rm -rf node_modules/.cache",
+    "deps:update": "npm update",
+    "deps:audit": "npm audit",
+    "health": "curl -f http://localhost:5000/health || echo 'Server not running'"
+  },
+  "dependencies": {
+    "@langchain/core": "^1.0.1",
+    "@langchain/groq": "^1.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "langchain": "^1.0.1",
+    "multer": "^1.4.5-lts.1",
+    "mammoth": "^1.8.0",
+    "xlsx": "^0.18.5",
+    "pdf-parse": "^1.1.1",
+    "tesseract.js": "^5.1.1",
+    "textract": "^2.5.0"
+  },
+  "devDependencies": {
+    "supertest": "^7.1.4",
+    "vitest": "^4.0.1"
+  },
+  "engines": {
+    "node": ">=20.19.0",
+    "npm": ">=10.0.0"
+  },
+  "keywords": [
+    "nodejs",
+    "express",
+    "langchain",
+    "groq",
+    "ai",
+    "pdf",
+    "word",
+    "excel",
+    "ocr",
+    "document-analysis",
+    "chat",
+    "backend",
+    "api"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sujithsa007/sujithsa007-ai-doc-analyser.git",
+    "directory": "ai-doc-analyser-backend"
+  },
+  "bugs": {
+    "url": "https://github.com/sujithsa007/sujithsa007-ai-doc-analyser/issues"
+  },
+  "homepage": "https://github.com/sujithsa007/sujithsa007-ai-doc-analyser#readme"
+}

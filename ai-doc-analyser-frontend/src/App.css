@@ -1,0 +1,97 @@
+/**
+ * Main Application Styles
+ * 
+ * Optimized CSS for the LangChain chat application with:
+ * - Modern flexbox layouts
+ * - Responsive design principles
+ * - Performance-optimized animations
+ * - Accessibility considerations
+ * - Clean, professional appearance
+ */
+
+/* Root container optimization for full-screen app */
+#root {
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* Prevent body scroll, use component scrolling */
+}
+
+/* Main application container */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #f7f7f8;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+/* Main content area (sidebar + chat) */
+.app-main {
+  display: flex;
+  flex: 1;
+  overflow: hidden; /* Prevent overflow, let components handle scrolling */
+  min-height: 0; /* Allow flex children to shrink below content size */
+}
+
+/* Chat container (messages + input) */
+.chat-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: #ffffff;
+  border-left: 1px solid #e1e5e9;
+  min-width: 0; /* Allow flex child to shrink */
+}
+
+/* Performance optimizations */
+.app-container * {
+  box-sizing: border-box; /* Consistent box model */
+}
+
+/* Smooth transitions for interactive elements */
+.app-container button,
+.app-container input,
+.app-container textarea {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Focus styles for accessibility */
+.app-container button:focus,
+.app-container input:focus,
+.app-container textarea:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+/* Loading animation for AI responses */
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+.loading {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 768px) {
+  .app-main {
+    flex-direction: column;
+  }
+  
+  .chat-container {
+    border-left: none;
+    border-top: 1px solid #e1e5e9;
+  }
+}
+
+/* Print styles - hide interactive elements */
+@media print {
+  .app-container button,
+  .app-container input,
+  .app-container textarea {
+    display: none;
+  }
+}
