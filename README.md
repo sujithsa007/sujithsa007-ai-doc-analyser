@@ -129,17 +129,14 @@ npm run dev
 #### 1. **Clone & Install Dependencies**
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone https://github.com/sujithsa007/sujithsa007-ai-doc-analyser.git
 cd ai-doc-analyser
 
-# Backend setup
-cd ai-doc-analyser-backend
-npm install
+# Switch to development branch
+git checkout dev
 
-# Frontend setup
-cd ../ai-doc-analyser-frontend
-npm install
-cd ..
+# Install all dependencies using workspace script
+npm run install:all
 ```
 
 #### 2. **Environment Configuration**
