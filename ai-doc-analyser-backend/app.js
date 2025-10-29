@@ -475,106 +475,18 @@ app.get("/formats", (req, res) => {
 
 /**
  * API Quota Status Endpoint
- * GET /quota - Returns current Groq API quota usage from real-time API headers
- * Caches quota data for 60 seconds to avoid hitting rate limits
+ * GET /quota - Returns local quota tracking statistics
+ * Tracks usage locally without making additional API calls
  */
-let quotaCache = null;
-let quotaCacheTime = null;
-const QUOTA_CACHE_DURATION = 60000; // 60 seconds
-
-app.get("/quota", async (req, res) => {
+app.get("/quota", (req, res) => {
   try {
-    const now = Date.now();
-    
-    // Return cached data if still valid
-    if (quotaCache && quotaCacheTime && (now - quotaCacheTime) < QUOTA_CACHE_DURATION) {
-      const cacheAge = Math.round((now - quotaCacheTime) / 1000);
-      console.log(`📦 Returning cached quota data (${cacheAge}s old)`);
-      return res.json({
-        ...quotaCache,
-        cached: true,
-        cacheAge
-      });
-    }
-
-    console.log('📊 Fetching fresh quota data from Groq API...');
-    
-    // Make a minimal request to Groq API to get rate limit headers
-    const response = await axios.post(
-      'https://api.groq.com/openai/v1/chat/completions',
-      {
-        model: 'llama-3.3-70b-versatile',
-        messages: [{ role: 'user', content: 'hi' }],
-        max_tokens: 5
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-
-    console.log('✅ Groq API response received');
-    
-    // Log ALL rate limit headers to see what Groq provides
-    const allRateLimitHeaders = {};
-    Object.keys(response.headers).forEach(key => {
-      if (key.toLowerCase().includes('ratelimit') || key.toLowerCase().includes('retry')) {
-        allRateLimitHeaders[key] = response.headers[key];
-      }
-    });
-    console.log('🔢 ALL Rate limit headers:', allRateLimitHeaders);
-
-    // Update quota tracker with response headers
-    quotaTracker.updateFromHeaders(response.headers);
-
-    // Get updated stats
-    const quotaStats = quotaTracker.getQuotaStats();
-    
-    const responseData = {
-      success: true,
-      quota: quotaStats,
-      message: quotaStats.status === 'critical' 
-        ? 'API quota nearly exhausted. Please wait for reset.'
-        : quotaStats.status === 'warning'
-        ? 'API quota running low. Use carefully.'
-        : 'API quota healthy.',
-      cached: false
-    };
-
-    // Cache the response
-    quotaCache = responseData;
-    quotaCacheTime = now;
-
-    res.json(responseData);
+    const stats = quotaTracker.getQuotaStats();
+    res.json(stats);
   } catch (error) {
-    console.error('❌ Error fetching quota from Groq:', error.message);
-    if (error.response) {
-      console.error('📋 Error response headers:', error.response.headers);
-      console.error('📄 Error response status:', error.response.status);
-    }
-    
-    // Return cached quota if available, otherwise return default
-    if (quotaCache) {
-      const cacheAge = Math.round((Date.now() - quotaCacheTime) / 1000);
-      console.log(`📦 Returning stale cached data (${cacheAge}s old) due to error`);
-      return res.json({
-        ...quotaCache,
-        cached: true,
-        stale: true,
-        cacheAge
-      });
-    }
-
-    // Return default quota stats if no cache available
-    const quotaStats = quotaTracker.getQuotaStats();
-    res.json({
-      success: true,
-      quota: quotaStats,
-      message: 'Using default quota data due to API error',
-      cached: true,
-      error: true
+    console.error("Error getting quota:", error);
+    res.status(500).json({ 
+      error: "Failed to retrieve quota information",
+      details: error.message 
     });
   }
 });
@@ -799,7 +711,11 @@ If you're looking for specific information, please ask about a particular docume
     const aiDuration = ((aiEndTime - aiStartTime) / 1000).toFixed(2);
     const totalDuration = ((aiEndTime - startRequestTime) / 1000).toFixed(2);
     
-    // Get updated quota stats (will be cached until next /quota call)
+    // Record request for local quota tracking
+    const tokensUsed = quotaTracker.constructor.estimateTokens(formattedPrompt + result.content);
+    quotaTracker.recordRequest(tokensUsed);
+    
+    // Get updated quota stats
     const quotaStats = quotaTracker.getQuotaStats();
     
     // Success logging

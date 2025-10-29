@@ -23,12 +23,8 @@ const QuotaDisplay = () => {
   const fetchQuota = async () => {
     try {
       const result = await getApiQuota();
-      if (result.success && result.quota) {
-        setQuota(result.quota);
-        setError(null);
-      } else {
-        setError('Unable to fetch quota');
-      }
+      setQuota(result);
+      setError(null);
     } catch (err) {
       setError('Quota unavailable');
       console.error('Quota fetch error:', err);
@@ -86,7 +82,7 @@ const QuotaDisplay = () => {
     <div className="quota-display" style={{ borderColor: statusInfo.color }}>
       <div className="quota-header">
         <span className="quota-icon">{statusInfo.icon}</span>
-        <span className="quota-title">API Quota</span>
+        <span className="quota-title">API Quota (Local Tracking)</span>
       </div>
       
       <div className="quota-details">
@@ -102,14 +98,33 @@ const QuotaDisplay = () => {
         
         <div className="quota-text">
           <span className="quota-percentage" style={{ color: statusInfo.color }}>
-            {overallPercentage}%
+            {overallPercentage.toFixed(1)}%
           </span>
           <span className="quota-label">remaining</span>
+        </div>
+
+        <div className="quota-stats">
+          <div className="stat-row">
+            <span className="stat-label">Requests (RPM):</span>
+            <span className="stat-value">
+              {quota.requests.perMinuteUsed}/{quota.requests.perMinuteLimit}
+            </span>
+          </div>
+          <div className="stat-row">
+            <span className="stat-label">Requests (RPD):</span>
+            <span className="stat-value">
+              {quota.requests.used}/{quota.requests.limit}
+            </span>
+          </div>
         </div>
 
         <div className="quota-reset">
           <span className="reset-label">Resets in:</span>
           <span className="reset-time">{formatResetTime(quota.resetIn)}</span>
+        </div>
+
+        <div className="quota-note">
+          <small>ℹ️ {quota.note}</small>
         </div>
       </div>
 
