@@ -52,8 +52,8 @@ temp/
 *.traineddata
 *.model
 
-# Package lock files (keep only one)
-package-lock.json
+# Note: package-lock.json is needed for Railway deployment
+# Only ignore yarn and pnpm lock files
 yarn.lock
 pnpm-lock.yaml
 
