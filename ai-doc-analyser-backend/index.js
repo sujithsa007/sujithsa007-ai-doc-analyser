@@ -10,11 +10,11 @@ import app from './app.js';
 
 // Server configuration
 const PORT = process.env.PORT || 5000;
-const HOST = process.env.HOST || 'localhost';
+const HOST = process.env.HOST || '0.0.0.0';  // Changed to 0.0.0.0 for Railway/cloud deployments
 
 // Start server with enhanced error handling
 try {
-  const server = app.listen(PORT, () => {
+  const server = app.listen(PORT, HOST, () => {
     console.log("\n🚀 ===== LANGCHAIN BACKEND STARTED =====");
     console.log(`✅ Server running on ${HOST}:${PORT}`);
     console.log(`🌐 URL: http://${HOST}:${PORT}`);
