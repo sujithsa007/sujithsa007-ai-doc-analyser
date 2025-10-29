@@ -17,6 +17,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import multer from "multer";
 import compression from "compression";
+import axios from "axios";
 import { ChatGroq } from "@langchain/groq";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import documentProcessor from "./services/documentProcessor.js";
@@ -474,19 +475,20 @@ app.get("/formats", (req, res) => {
 
 /**
  * API Quota Status Endpoint
- * GET /quota - Returns current Groq API quota usage and remaining limits
+ * GET /quota - Returns local quota tracking statistics
+ * Tracks usage locally without making additional API calls
  */
 app.get("/quota", (req, res) => {
-  const quotaStats = quotaTracker.getQuotaStats();
-  res.json({
-    success: true,
-    quota: quotaStats,
-    message: quotaStats.status === 'critical' 
-      ? 'API quota nearly exhausted. Please wait for reset.'
-      : quotaStats.status === 'warning'
-      ? 'API quota running low. Use carefully.'
-      : 'API quota healthy.'
-  });
+  try {
+    const stats = quotaTracker.getQuotaStats();
+    res.json(stats);
+  } catch (error) {
+    console.error("Error getting quota:", error);
+    res.status(500).json({ 
+      error: "Failed to retrieve quota information",
+      details: error.message 
+    });
+  }
 });
 
 /**
@@ -701,12 +703,6 @@ If you're looking for specific information, please ask about a particular docume
     // Step 2: Call Groq API for AI analysis
     console.log("🤖 Step 2: Calling Groq AI model...");
     
-    // Track quota before making the request
-    const estimatedTokens = quotaTracker.constructor.estimateTokens(
-      formattedPrompt + (question || '')
-    );
-    quotaTracker.recordRequest(estimatedTokens);
-    
     const aiStartTime = Date.now();
     
     const result = await model.invoke(formattedPrompt);
@@ -714,6 +710,10 @@ If you're looking for specific information, please ask about a particular docume
     const aiEndTime = Date.now();
     const aiDuration = ((aiEndTime - aiStartTime) / 1000).toFixed(2);
     const totalDuration = ((aiEndTime - startRequestTime) / 1000).toFixed(2);
+    
+    // Record request for local quota tracking
+    const tokensUsed = quotaTracker.constructor.estimateTokens(formattedPrompt + result.content);
+    quotaTracker.recordRequest(tokensUsed);
     
     // Get updated quota stats
     const quotaStats = quotaTracker.getQuotaStats();
@@ -778,6 +778,10 @@ If you're looking for specific information, please ask about a particular docume
     // Handle specific error types for better user experience
     if (isRateLimitError) {
       console.log("🚫 Rate limit error detected, returning 429 response");
+      
+      // Record rate limit in quota tracker
+      quotaTracker.recordRateLimit(waitTime, `Rate limit exceeded. Please try again in ${waitTime}`);
+      
       return res.status(429).json({ 
         error: `🚫 AI Rate Limit Reached\n\nYour free tier AI usage limit has been exceeded for today. The Groq AI service has a daily token limit.\n\n⏰ Please try again in: ${waitTime}\n\n💡 To continue using the service immediately:\n• Upgrade to Groq Dev Tier at: https://console.groq.com/settings/billing\n• Or wait ${waitTime} for the limit to reset\n\nSorry for the inconvenience!`,
         code: "RATE_LIMIT_EXCEEDED",
