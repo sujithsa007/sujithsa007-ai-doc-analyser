@@ -1,132 +1,191 @@
 /**
  * Groq API Quota Tracker
  * 
- * Tracks API usage and calculates remaining quota based on Groq's free tier limits
- * Free Tier Limits (as of 2025):
- * - 30 requests per minute (RPM)
- * - 14,400 tokens per minute (TPM)
- * - Resets every minute
+ * Tracks API usage from real-time Groq response headers.
+ * Groq provides rate limit information in HTTP response headers:
+ * - x-ratelimit-limit-requests: RPD (Requests Per Day)
+ * - x-ratelimit-limit-tokens: TPM (Tokens Per Minute)
+ * - x-ratelimit-remaining-requests: Remaining RPD
+ * - x-ratelimit-remaining-tokens: Remaining TPM
+ * - x-ratelimit-reset-requests: Time until RPD resets (e.g., "2m59.56s")
+ * - x-ratelimit-reset-tokens: Time until TPM resets (e.g., "7.66s")
  */
 
 class QuotaTracker {
   constructor() {
-    // Groq free tier limits
-    this.LIMITS = {
-      requestsPerMinute: 30,
-      tokensPerMinute: 14400,
+    // Store latest quota info from Groq API headers
+    this.latestQuota = {
+      requests: {
+        limit: 14400, // RPD (Requests Per Day) - default for free tier
+        remaining: 14400,
+        resetTime: null,
+        resetIn: null
+      },
+      tokens: {
+        limit: 18000, // TPM (Tokens Per Minute) - default for free tier  
+        remaining: 18000,
+        resetTime: null,
+        resetIn: null
+      },
+      lastUpdated: null
     };
-
-    // Tracking data
-    this.requests = [];
-    this.tokens = [];
   }
 
   /**
-   * Record a new API request
-   * @param {number} tokensUsed - Estimated tokens used in the request
+   * Update quota information from Groq API response headers
+   * @param {Object} headers - Response headers from Groq API
    */
-  recordRequest(tokensUsed = 0) {
-    const now = Date.now();
-    
-    // Add new request
-    this.requests.push(now);
-    if (tokensUsed > 0) {
-      this.tokens.push({ timestamp: now, count: tokensUsed });
+  updateFromHeaders(headers) {
+    try {
+      const now = Date.now();
+
+      // Extract rate limit information from headers
+      if (headers['x-ratelimit-limit-requests']) {
+        this.latestQuota.requests.limit = parseInt(headers['x-ratelimit-limit-requests']);
+      }
+      if (headers['x-ratelimit-limit-tokens']) {
+        this.latestQuota.tokens.limit = parseInt(headers['x-ratelimit-limit-tokens']);
+      }
+      if (headers['x-ratelimit-remaining-requests']) {
+        this.latestQuota.requests.remaining = parseInt(headers['x-ratelimit-remaining-requests']);
+      }
+      if (headers['x-ratelimit-remaining-tokens']) {
+        this.latestQuota.tokens.remaining = parseInt(headers['x-ratelimit-remaining-tokens']);
+      }
+
+      // Parse reset times (format: "2m59.56s" or "7.66s")
+      if (headers['x-ratelimit-reset-requests']) {
+        this.latestQuota.requests.resetIn = this.parseResetTime(headers['x-ratelimit-reset-requests']);
+        this.latestQuota.requests.resetTime = now + (this.latestQuota.requests.resetIn * 1000);
+      }
+      if (headers['x-ratelimit-reset-tokens']) {
+        this.latestQuota.tokens.resetIn = this.parseResetTime(headers['x-ratelimit-reset-tokens']);
+        this.latestQuota.tokens.resetTime = now + (this.latestQuota.tokens.resetIn * 1000);
+      }
+
+      this.latestQuota.lastUpdated = now;
+
+      console.log('📊 Quota updated from Groq headers:', {
+        requests: `${this.latestQuota.requests.remaining}/${this.latestQuota.requests.limit}`,
+        tokens: `${this.latestQuota.tokens.remaining}/${this.latestQuota.tokens.limit}`,
+        requestsReset: `${this.latestQuota.requests.resetIn}s`,
+        tokensReset: `${this.latestQuota.tokens.resetIn}s`
+      });
+    } catch (error) {
+      console.error('Error updating quota from headers:', error);
     }
-
-    // Clean up old entries (older than 1 minute)
-    this.cleanupOldEntries();
   }
 
   /**
-   * Remove entries older than 1 minute
+   * Parse reset time string (e.g., "2m59.56s" or "7.66s") to seconds
+   * @param {string} resetStr - Reset time string from header
+   * @returns {number} Seconds until reset
    */
-  cleanupOldEntries() {
-    const oneMinuteAgo = Date.now() - 60000;
-    
-    this.requests = this.requests.filter(timestamp => timestamp > oneMinuteAgo);
-    this.tokens = this.tokens.filter(entry => entry.timestamp > oneMinuteAgo);
+  parseResetTime(resetStr) {
+    try {
+      let totalSeconds = 0;
+      
+      // Parse minutes if present (e.g., "2m59.56s")
+      const minutesMatch = resetStr.match(/(\d+)m/);
+      if (minutesMatch) {
+        totalSeconds += parseInt(minutesMatch[1]) * 60;
+      }
+
+      // Parse seconds (e.g., "59.56s" or "7.66s")
+      const secondsMatch = resetStr.match(/([\d.]+)s/);
+      if (secondsMatch) {
+        totalSeconds += parseFloat(secondsMatch[1]);
+      }
+
+      return Math.ceil(totalSeconds);
+    } catch (error) {
+      console.error('Error parsing reset time:', error);
+      return 60; // Default to 60 seconds
+    }
   }
 
   /**
-   * Get current quota usage statistics
-   * @returns {Object} Quota statistics
+   * Get current quota statistics
+   * @returns {Object} Quota information with percentages and status
    */
   getQuotaStats() {
-    this.cleanupOldEntries();
+    const now = Date.now();
 
-    const requestsUsed = this.requests.length;
-    const tokensUsed = this.tokens.reduce((sum, entry) => sum + entry.count, 0);
+    // Calculate percentages - remaining is what Groq gives us directly
+    const requestsRemainingPercent = (this.latestQuota.requests.remaining / this.latestQuota.requests.limit) * 100;
+    const tokensRemainingPercent = (this.latestQuota.tokens.remaining / this.latestQuota.tokens.limit) * 100;
 
-    const requestsRemaining = Math.max(0, this.LIMITS.requestsPerMinute - requestsUsed);
-    const tokensRemaining = Math.max(0, this.LIMITS.tokensPerMinute - tokensUsed);
+    const requestsUsedPercent = 100 - requestsRemainingPercent;
+    const tokensUsedPercent = 100 - tokensRemainingPercent;
 
-    // Calculate percentages
-    const requestsPercentage = Math.round((requestsUsed / this.LIMITS.requestsPerMinute) * 100);
-    const tokensPercentage = Math.round((tokensUsed / this.LIMITS.tokensPerMinute) * 100);
+    // Calculate time until reset (in seconds)
+    const requestsResetIn = this.latestQuota.requests.resetTime 
+      ? Math.max(0, Math.ceil((this.latestQuota.requests.resetTime - now) / 1000))
+      : this.latestQuota.requests.resetIn || 0;
 
-    // Calculate time until reset (end of current minute)
-    const now = new Date();
-    const nextMinute = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 
-                                 now.getHours(), now.getMinutes() + 1, 0, 0);
-    const secondsUntilReset = Math.ceil((nextMinute - now) / 1000);
+    const tokensResetIn = this.latestQuota.tokens.resetTime
+      ? Math.max(0, Math.ceil((this.latestQuota.tokens.resetTime - now) / 1000))
+      : this.latestQuota.tokens.resetIn || 0;
+
+    // Determine overall status based on the most restrictive limit
+    const lowestPercent = Math.min(requestsRemainingPercent, tokensRemainingPercent);
+    let status = 'healthy';
+    if (lowestPercent < 10) status = 'critical';
+    else if (lowestPercent < 20) status = 'warning';
+    else if (lowestPercent < 50) status = 'moderate';
 
     return {
       requests: {
-        used: requestsUsed,
-        remaining: requestsRemaining,
-        limit: this.LIMITS.requestsPerMinute,
-        percentage: requestsPercentage,
-        percentageRemaining: Math.max(0, 100 - requestsPercentage)
+        used: this.latestQuota.requests.limit - this.latestQuota.requests.remaining,
+        remaining: this.latestQuota.requests.remaining,
+        limit: this.latestQuota.requests.limit,
+        percentage: Math.round(requestsUsedPercent * 10) / 10,
+        percentageRemaining: Math.round(requestsRemainingPercent * 10) / 10
       },
       tokens: {
-        used: tokensUsed,
-        remaining: tokensRemaining,
-        limit: this.LIMITS.tokensPerMinute,
-        percentage: tokensPercentage,
-        percentageRemaining: Math.max(0, 100 - tokensPercentage)
+        used: this.latestQuota.tokens.limit - this.latestQuota.tokens.remaining,
+        remaining: this.latestQuota.tokens.remaining,
+        limit: this.latestQuota.tokens.limit,
+        percentage: Math.round(tokensUsedPercent * 10) / 10,
+        percentageRemaining: Math.round(tokensRemainingPercent * 10) / 10
       },
-      resetIn: secondsUntilReset,
-      resetAt: nextMinute.toISOString(),
-      status: this.getQuotaStatus(requestsPercentage, tokensPercentage)
+      resetIn: Math.max(requestsResetIn, tokensResetIn), // Use the longer reset time
+      requestsResetIn,
+      tokensResetIn,
+      resetAt: this.latestQuota.tokens.resetTime 
+        ? new Date(this.latestQuota.tokens.resetTime).toISOString()
+        : new Date(now + (tokensResetIn * 1000)).toISOString(),
+      status,
+      lastUpdated: this.latestQuota.lastUpdated 
+        ? new Date(this.latestQuota.lastUpdated).toISOString()
+        : null
     };
   }
 
   /**
-   * Get quota status indicator
-   * @param {number} requestsPercentage 
-   * @param {number} tokensPercentage 
-   * @returns {string} Status indicator
+   * Check if quota is available (based on real-time data)
+   * @returns {boolean} True if quota is available
    */
-  getQuotaStatus(requestsPercentage, tokensPercentage) {
-    const maxPercentage = Math.max(requestsPercentage, tokensPercentage);
-    
-    if (maxPercentage >= 90) return 'critical';
-    if (maxPercentage >= 70) return 'warning';
-    if (maxPercentage >= 50) return 'moderate';
-    return 'healthy';
+  hasQuota() {
+    return this.latestQuota.requests.remaining > 0 && 
+           this.latestQuota.tokens.remaining > 0;
   }
 
   /**
-   * Check if quota is available
-   * @param {number} estimatedTokens - Estimated tokens for the request
-   * @returns {boolean} True if quota is available
+   * Get quota status for a specific type
+   * @param {string} type - 'requests' or 'tokens'
+   * @returns {string} Status: 'healthy', 'moderate', 'warning', or 'critical'
    */
-  hasQuota(estimatedTokens = 0) {
-    this.cleanupOldEntries();
+  getQuotaStatus(type = 'requests') {
+    const quota = this.latestQuota[type];
+    if (!quota) return 'healthy';
 
-    const requestsUsed = this.requests.length;
-    const tokensUsed = this.tokens.reduce((sum, entry) => sum + entry.count, 0);
+    const percentageRemaining = (quota.remaining / quota.limit) * 100;
 
-    if (requestsUsed >= this.LIMITS.requestsPerMinute) {
-      return false;
-    }
-
-    if (estimatedTokens > 0 && (tokensUsed + estimatedTokens) > this.LIMITS.tokensPerMinute) {
-      return false;
-    }
-
-    return true;
+    if (percentageRemaining < 10) return 'critical';
+    if (percentageRemaining < 20) return 'warning';
+    if (percentageRemaining < 50) return 'moderate';
+    return 'healthy';
   }
 
   /**

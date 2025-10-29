@@ -13,10 +13,10 @@ const QuotaDisplay = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch quota on component mount and refresh every 10 seconds
+  // Fetch quota on component mount and refresh every 30 seconds
   useEffect(() => {
     fetchQuota();
-    const interval = setInterval(fetchQuota, 10000); // Refresh every 10 seconds
+    const interval = setInterval(fetchQuota, 30000); // Refresh every 30 seconds to avoid hitting rate limits
     return () => clearInterval(interval);
   }, []);
 
