@@ -139,6 +139,9 @@ export const askQuestion = async (question, content, documents = null) => {
   } catch (error) {
     // Enhanced error handling with specific error types
     console.error('❌ AI Request Failed:', error);
+    console.log('🔍 Error response:', error.response);
+    console.log('🔍 Error response data:', error.response?.data);
+    console.log('🔍 Error response status:', error.response?.status);
     
     if (error.response) {
       // Server responded with an error status
@@ -146,16 +149,21 @@ export const askQuestion = async (question, content, documents = null) => {
       const errorMessage = data?.error || `Server error (${status})`;
       const errorCode = data?.code || 'SERVER_ERROR';
       
-      // Handle specific error codes
+      console.log('🔍 Error details:', { status, errorCode, errorMessage, data });
+      
+      // Handle specific error codes - preserve full error message from backend
       switch (errorCode) {
+        case 'RATE_LIMIT_EXCEEDED':
+        case 'RATE_LIMIT_ERROR':
+          console.log('🚫 Rate limit error detected in API service');
+          // Preserve the full formatted message from backend
+          throw new Error(errorMessage);
+        
         case 'TIMEOUT_ERROR':
           throw new Error('Request timed out. The document(s) might be too large or the server is busy. Please try again with smaller documents.');
         
         case 'AUTH_ERROR':
           throw new Error('Authentication failed. The API key might be invalid or expired.');
-        
-        case 'RATE_LIMIT_ERROR':
-          throw new Error('Rate limit exceeded. Please wait a moment before making another request.');
         
         case 'PAYLOAD_TOO_LARGE':
           throw new Error('Document(s) too large for processing. Please try with smaller files.');

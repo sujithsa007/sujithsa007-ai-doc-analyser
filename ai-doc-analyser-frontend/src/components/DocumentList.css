@@ -36,6 +36,12 @@
   color: #1f2937;
 }
 
+.document-list-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .comparison-badge {
   background: #dbeafe;
   color: #1e40af;
@@ -43,6 +49,33 @@
   border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
+}
+
+.btn-delete-all {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.btn-delete-all:hover {
+  background: #b91c1c;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(220, 38, 38, 0.3);
+}
+
+.btn-delete-all:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
 }
 
 .document-list-items {

@@ -4,7 +4,9 @@
  */
 
 import { useSelector, useDispatch } from 'react-redux';
-import { setActiveDocument, removeDocument, toggleDocumentForComparison } from '../store/slices/pdfSlice';
+import { setActiveDocument, removeDocument, toggleDocumentForComparison, clearAllDocuments } from '../store/slices/pdfSlice';
+import { clearMessages } from '../store/slices/chatSlice';
+import queryCache from '../services/queryCache';
 import './DocumentList.css';
 
 const DocumentList = () => {
@@ -27,6 +29,15 @@ const DocumentList = () => {
   const handleToggleComparison = (docId, e) => {
     e.stopPropagation();
     dispatch(toggleDocumentForComparison(docId));
+  };
+
+  const handleDeleteAll = () => {
+    if (window.confirm(`Are you sure you want to delete all ${documents.length} documents? This action cannot be undone.`)) {
+      dispatch(clearAllDocuments());
+      dispatch(clearMessages());
+      queryCache.clear();
+      console.log('🗑️ All documents deleted and cache cleared');
+    }
   };
 
   const formatFileSize = (bytes) => {
@@ -53,11 +64,22 @@ const DocumentList = () => {
     <div className="document-list">
       <div className="document-list-header">
         <h3>📚 Documents ({documents.length})</h3>
-        {documents.length > 1 && comparisonMode && (
-          <span className="comparison-badge">
-            Comparing {selectedForComparison.length} docs
-          </span>
-        )}
+        <div className="document-list-actions">
+          {documents.length > 1 && comparisonMode && (
+            <span className="comparison-badge">
+              Comparing {selectedForComparison.length} docs
+            </span>
+          )}
+          {documents.length > 0 && (
+            <button
+              className="btn-delete-all"
+              onClick={handleDeleteAll}
+              title="Delete all documents"
+            >
+              🗑️ Delete All
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="document-list-items">

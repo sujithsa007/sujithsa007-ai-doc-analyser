@@ -28,7 +28,7 @@ const MessageInput = () => {
   const dispatch = useDispatch();
   
   // Redux state selectors
-  const { question, isAsking } = useSelector((state) => state.chat);
+  const { question, isAsking, error } = useSelector((state) => state.chat);
   const { content, isParsing, documents } = useSelector((state) => state.pdf);
 
   // Check if we have any documents uploaded
@@ -160,19 +160,40 @@ const MessageInput = () => {
     } catch (error) {
       console.error('❌ Error asking question:', error);
       
+      // Parse error details
+      let errorContent = error.message || 'Sorry, I encountered an error processing your question. Please try again.';
+      let isRateLimitError = false;
+      
+      // Detect rate limit errors from error message content
+      if (errorContent.includes('Rate limit') || 
+          errorContent.includes('rate limit') || 
+          errorContent.includes('AI Rate Limit Reached') ||
+          errorContent.includes('🚫')) {
+        isRateLimitError = true;
+        // Use the full formatted message from backend
+        errorContent = error.message;
+      }
+      
+      console.log('🔍 Error details:', { 
+        isRateLimitError, 
+        errorContent, 
+        originalError: error 
+      });
+      
       // Create error message for user
       const errorMessage = {
         role: 'assistant',
-        content: error.message || 'Sorry, I encountered an error processing your question. Please try again.',
+        content: errorContent,
         timestamp: new Date().toLocaleTimeString([], { 
           hour: '2-digit', 
           minute: '2-digit' 
         }),
-        isError: true
+        isError: true,
+        isRateLimitError: isRateLimitError
       };
       
       dispatch(addMessage(errorMessage));
-      dispatch(setError(error.message));
+      dispatch(setError(errorContent));
       
     } finally {
       dispatch(setIsAsking(false));
@@ -259,9 +280,9 @@ const MessageInput = () => {
       {/** We show the current error below for accessibility and test visibility */}
       {/** The tests expect specific error text to appear when error exists */}
       {/** aria-live polite for screen readers */}
-      {useSelector((state) => state.chat.error) && (
+      {error && (
         <div role="alert" style={styles.error} aria-live="polite">
-          {useSelector((state) => state.chat.error)}
+          {error}
         </div>
       )}
     </div>

@@ -53,17 +53,17 @@ const model = new ChatGroq({
   model: "llama-3.3-70b-versatile", // Latest LLaMA model - excellent for document analysis
   temperature: 0, // Deterministic responses for consistent analysis
   apiKey: process.env.GROQ_API_KEY, // Free API key from console.groq.com
-  maxTokens: 2048, // Limit response length for faster inference (was undefined)
+  maxTokens: 2048, // Limit response length for faster inference
   streaming: false, // Non-streaming for complete responses
-  maxRetries: 2, // Reduce retries for faster failure
-  timeout: 30000, // 30 second timeout (was infinite)
+  maxRetries: 2, // Reduce retries for faster failure detection
+  timeout: 30000, // 30 second timeout to avoid hanging requests
 });
 
 /**
  * Smart content truncation to fit within token limits while preserving important information
  * Uses intelligent chunking to keep beginning and end of documents
  */
-function smartTruncate(content, maxChars = 15000) {
+function smartTruncate(content, maxChars = 12000) { // Reduced from 15000 for faster processing
   if (content.length <= maxChars) {
     return content;
   }
@@ -76,6 +76,195 @@ function smartTruncate(content, maxChars = 15000) {
   const end = content.substring(content.length - endChars);
   
   return `${beginning}\n\n[... ${(content.length - maxChars).toLocaleString()} characters omitted for performance ...]\n\n${end}`;
+}
+
+/**
+ * Content Similarity Analyzer
+ * Calculates actual content similarity between documents before AI analysis
+ * Returns similarity metrics to help AI make evidence-based decisions
+ */
+function analyzeContentSimilarity(documents) {
+  if (documents.length < 2) {
+    return { hasSimilarity: false, metrics: {} };
+  }
+
+  // Extract meaningful words (remove common stop words)
+  const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been', 'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those', 'it', 'its', 'his', 'her', 'their', 'our', 'your']);
+  
+  const getSignificantWords = (content) => {
+    return content
+      .toLowerCase()
+      .replace(/[^a-z0-9\s@.-]/g, ' ') // Keep alphanumeric, emails, numbers
+      .split(/\s+/)
+      .filter(word => word.length > 2 && !stopWords.has(word))
+      .filter(word => !/^\d+$/.test(word)); // Remove pure numbers
+  };
+
+  const getNgrams = (words, n = 3) => {
+    const ngrams = new Set();
+    for (let i = 0; i <= words.length - n; i++) {
+      ngrams.add(words.slice(i, i + n).join(' '));
+    }
+    return ngrams;
+  };
+
+  // Analyze each document
+  const docAnalysis = documents.map((doc, index) => {
+    const content = doc.content || '';
+    const words = getSignificantWords(content);
+    const uniqueWords = new Set(words);
+    const ngrams = getNgrams(words, 3);
+    
+    // Extract potential entities (capitalized words, emails, specific patterns)
+    const entities = new Set();
+    const lines = content.split('\n');
+    
+    // Extract emails
+    const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
+    const emails = content.match(emailRegex) || [];
+    emails.forEach(email => entities.add(email.toLowerCase()));
+    
+    // Extract capitalized phrases (potential names, places, organizations)
+    const capitalizedRegex = /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b/g;
+    const capitalizedPhrases = content.match(capitalizedRegex) || [];
+    capitalizedPhrases.forEach(phrase => entities.add(phrase));
+    
+    // Extract dates
+    const dateRegex = /\b\d{1,2}[-/]\d{1,2}[-/]\d{2,4}\b|\b\d{4}[-/]\d{1,2}[-/]\d{1,2}\b/g;
+    const dates = content.match(dateRegex) || [];
+    dates.forEach(date => entities.add(date));
+    
+    // Extract IDs and codes (alphanumeric patterns like EMP-123, ID12345)
+    const idRegex = /\b[A-Z]{2,}-?\d{3,}\b|\b[A-Z]+\d{4,}\b/g;
+    const ids = content.match(idRegex) || [];
+    ids.forEach(id => entities.add(id));
+
+    return {
+      index,
+      fileName: doc.fileName,
+      wordCount: words.length,
+      uniqueWords,
+      ngrams,
+      entities,
+      contentLength: content.length
+    };
+  });
+
+  // Calculate pairwise similarities
+  const similarities = [];
+  for (let i = 0; i < docAnalysis.length; i++) {
+    for (let j = i + 1; j < docAnalysis.length; j++) {
+      const doc1 = docAnalysis[i];
+      const doc2 = docAnalysis[j];
+      
+      // Jaccard similarity for unique words
+      const intersection = new Set([...doc1.uniqueWords].filter(x => doc2.uniqueWords.has(x)));
+      const union = new Set([...doc1.uniqueWords, ...doc2.uniqueWords]);
+      const wordSimilarity = intersection.size / union.size;
+      
+      // N-gram similarity (phrase overlap)
+      const ngramIntersection = new Set([...doc1.ngrams].filter(x => doc2.ngrams.has(x)));
+      const ngramUnion = new Set([...doc1.ngrams, ...doc2.ngrams]);
+      const ngramSimilarity = ngramUnion.size > 0 ? ngramIntersection.size / ngramUnion.size : 0;
+      
+      // Entity overlap (names, emails, dates, IDs)
+      const entityIntersection = new Set([...doc1.entities].filter(x => doc2.entities.has(x)));
+      const sharedEntities = Array.from(entityIntersection);
+      
+      // Overall similarity score (weighted)
+      const overallSimilarity = (wordSimilarity * 0.3) + (ngramSimilarity * 0.4) + (Math.min(entityIntersection.size / 3, 1) * 0.3);
+      
+      similarities.push({
+        doc1: doc1.fileName,
+        doc2: doc2.fileName,
+        wordSimilarity: (wordSimilarity * 100).toFixed(1),
+        ngramSimilarity: (ngramSimilarity * 100).toFixed(1),
+        sharedEntities: sharedEntities,
+        entityCount: entityIntersection.size,
+        overallSimilarity: (overallSimilarity * 100).toFixed(1),
+        // STRICTER THRESHOLD: Need 20% overall similarity OR 5+ shared entities
+        isLikelySimilar: overallSimilarity > 0.20 || entityIntersection.size >= 5
+      });
+    }
+  }
+
+  // Determine if ANY documents are similar
+  const hasSimilarity = similarities.some(s => s.isLikelySimilar);
+  
+  return {
+    hasSimilarity,
+    similarities,
+    totalDocuments: documents.length,
+    analysis: docAnalysis.map(d => ({
+      fileName: d.fileName,
+      uniqueWordCount: d.uniqueWords.size,
+      entityCount: d.entities.size,
+      contentLength: d.contentLength
+    }))
+  };
+}
+
+/**
+ * Format similarity analysis for AI context
+ */
+function formatSimilarityContext(similarityResult) {
+  // Handle single document case (no comparison possible)
+  if (!similarityResult.similarities || similarityResult.similarities.length === 0) {
+    return `
+⚠️ CONTENT ANALYSIS PRE-CHECK:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SINGLE DOCUMENT ANALYSIS - No comparison needed
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+`;
+  }
+  
+  if (!similarityResult.hasSimilarity) {
+    return `
+⚠️ CONTENT ANALYSIS PRE-CHECK:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AUTOMATED SIMILARITY SCAN RESULTS: NO SIGNIFICANT OVERLAP DETECTED
+
+${similarityResult.similarities.map(s => 
+  `📊 ${s.doc1} vs ${s.doc2}:
+   - Word Overlap: ${s.wordSimilarity}% (threshold: 20%)
+   - Phrase Match: ${s.ngramSimilarity}% (threshold: 15%)
+   - Shared Entities: ${s.entityCount} (threshold: 5)
+   - Overall Similarity: ${s.overallSimilarity}%
+   ❌ VERDICT: Documents are COMPLETELY UNRELATED (failed all thresholds)`
+).join('\n\n')}
+
+⚠️ CRITICAL INSTRUCTION: The automated deep-content scan found ZERO significant overlap.
+Blood test reports vs student data, sales reports vs recipes, etc. = UNRELATED.
+These documents discuss COMPLETELY DIFFERENT topics with COMPLETELY DIFFERENT data.
+DO NOT claim they are related unless you find CONCRETE SHARED ENTITIES (same names, IDs, references).
+Generic similarities like "both have numbers" or "both are data files" DO NOT COUNT.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+`;
+  }
+
+  return `
+✅ CONTENT ANALYSIS PRE-CHECK:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AUTOMATED SIMILARITY SCAN RESULTS: POTENTIAL OVERLAP DETECTED
+
+${similarityResult.similarities.map(s => {
+  if (s.isLikelySimilar) {
+    return `📊 ${s.doc1} vs ${s.doc2}:
+   - Word Overlap: ${s.wordSimilarity}%
+   - Phrase Match: ${s.ngramSimilarity}%
+   - Shared Entities: ${s.entityCount} → ${s.sharedEntities.length > 0 ? s.sharedEntities.slice(0, 5).join(', ') : 'None'}
+   - Overall Similarity: ${s.overallSimilarity}%
+   ✅ VERDICT: Potential relationship detected - verify with evidence`;
+  } else {
+    return `📊 ${s.doc1} vs ${s.doc2}:
+   - Overall Similarity: ${s.overallSimilarity}%
+   ❌ VERDICT: Documents appear UNRELATED`;
+  }
+}).join('\n\n')}
+
+💡 Use these shared entities as evidence in your analysis.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+`;
 }
 
 /**
@@ -145,16 +334,24 @@ You are a CRITICAL document analyst specializing in precise cross-document analy
 ⚠️  CRITICAL ANALYSIS RULES - FOLLOW STRICTLY ⚠️
 ═══════════════════════════════════════════════════════════════════════
 
+0. AUTOMATED SIMILARITY SCAN:
+   - An automated content analysis has already scanned the documents
+   - If the scan shows "NO SIGNIFICANT OVERLAP DETECTED", the documents are LIKELY UNRELATED
+   - You MUST find concrete evidence to override the automated scan results
+   - Low similarity scores (<15%) indicate DIFFERENT content - do NOT claim they are related
+
 1. EVIDENCE REQUIREMENT:
    - NEVER claim similarity without CONCRETE evidence
    - Quote EXACT text, data, or values that support your claims
    - If you cannot find specific matching content, the documents are UNRELATED
+   - File type differences (PDF vs TXT) mean NOTHING - only actual content matters
 
 2. RELATIONSHIP VALIDATION:
    - Documents uploaded together does NOT mean they are related
    - Similarity requires: shared entities (names, dates, IDs), overlapping topics, or common data
    - Different topics/subjects = UNRELATED documents
    - Generic similarities (e.g., "both are business documents") DO NOT count as related
+   - If automated scan shows low similarity AND you find no shared entities, they are UNRELATED
 
 3. DATA EXTRACTION (for spreadsheets/tables):
    - When searching for person-specific data across Excel/CSV files:
@@ -379,19 +576,92 @@ app.post("/ask", async (req, res) => {
     let formattedPrompt;
     
     if (isMultiDoc) {
-      // MULTI-DOCUMENT ANALYSIS with optimized formatting
-      console.log("⚙️  Step 1: Formatting multi-document AI prompt (with smart truncation)...");
+      // MULTI-DOCUMENT ANALYSIS with content similarity pre-check
+      console.log("⚙️  Step 1a: Analyzing content similarity across documents...");
+      
+      // Perform automated content similarity analysis
+      const similarityResult = analyzeContentSimilarity(documents);
+      console.log(`📊 Similarity Analysis Complete:`);
+      console.log(`   - Documents scanned: ${similarityResult.totalDocuments}`);
+      console.log(`   - Similarity detected: ${similarityResult.hasSimilarity ? '✅ YES' : '❌ NO'}`);
+      
+      if (similarityResult.similarities) {
+        similarityResult.similarities.forEach(s => {
+          console.log(`   - ${s.doc1} vs ${s.doc2}: ${s.overallSimilarity}% similarity, ${s.entityCount} shared entities`);
+        });
+      }
+      
+      // CHECK FOR RELATIONSHIP QUESTIONS - If asking about similarity and documents are clearly unrelated, skip AI
+      const isRelationshipQuestion = /are\s+(these|they|the\s+documents?|the\s+files?)\s+(related|similar|same|connected|linked)|do\s+(these|they)\s+(relate|match|connect)|is\s+there\s+(any\s+)?(relation|similarity|connection|link)|compare\s+(these|the\s+documents?)/i.test(question);
+      
+      // Only trigger hard block for multi-document comparisons (2+ documents)
+      if (isRelationshipQuestion && !similarityResult.hasSimilarity && similarityResult.similarities && similarityResult.similarities.length > 0) {
+        // Documents are clearly unrelated - return immediate response without AI
+        const maxSimilarity = Math.max(...similarityResult.similarities.map(s => parseFloat(s.overallSimilarity)));
+        const totalSharedEntities = similarityResult.similarities.reduce((sum, s) => sum + s.entityCount, 0);
+        
+        console.log(`🚫 HARD BLOCK TRIGGERED: Relationship question detected with ${maxSimilarity.toFixed(1)}% max similarity`);
+        console.log(`   Skipping AI inference - returning definitive UNRELATED verdict\n`);
+        
+        const autoResponse = `❌ **THESE DOCUMENTS ARE COMPLETELY UNRELATED**
+
+**AUTOMATED CONTENT ANALYSIS VERDICT:**
+
+I've performed a comprehensive automated analysis comparing the actual content of these documents, and the results are definitive:
+
+${similarityResult.similarities.map(s => `
+📊 **${s.doc1}** vs **${s.doc2}**:
+- Word Overlap: ${s.wordSimilarity}% (Threshold: 15% required)
+- Phrase Matching: ${s.ngramSimilarity}% (Threshold: 10% required)  
+- Shared Entities: ${s.entityCount} (Threshold: 3 required)
+- **Overall Similarity: ${s.overallSimilarity}%**
+- **Verdict: ❌ UNRELATED** (below all thresholds)
+`).join('\n')}
+
+**WHY THEY ARE UNRELATED:**
+
+1. **No Shared Entities**: ${totalSharedEntities === 0 ? 'Zero common names, emails, dates, IDs, or identifiers found' : `Only ${totalSharedEntities} shared entities (need at least 3 significant matches)`}
+2. **Different Topics**: The documents discuss completely different subject matters
+3. **Minimal Word Overlap**: Less than ${maxSimilarity.toFixed(1)}% of words match (need >15% for similarity)
+4. **No Common Phrases**: Virtually no matching 3-word phrases detected
+
+**CONCLUSION:**
+
+These documents serve entirely different purposes and contain no cross-references or shared data. They were likely uploaded together by coincidence, but their content is completely independent.
+
+If you're looking for specific information, please ask about a particular document rather than comparing them.`;
+
+        const endTime = Date.now();
+        const totalDuration = ((endTime - startRequestTime) / 1000).toFixed(2);
+        
+        return res.json({ 
+          answer: autoResponse,
+          metadata: {
+            processingTime: totalDuration,
+            aiResponseTime: '0.0',
+            documentCount: documents.length,
+            analysisMode: 'automated-unrelated-detection',
+            similarityScore: maxSimilarity.toFixed(1),
+            aiSkipped: true
+          }
+        });
+      }
+      
+      console.log("\n⚙️  Step 1b: Formatting multi-document AI prompt (with smart truncation)...");
+      
+      // Add similarity context to help AI make evidence-based decisions
+      const similarityContext = formatSimilarityContext(similarityResult);
       
       // Use optimized formatting function
       const documentsContent = formatDocumentsOptimized(documents);
       
       formattedPrompt = await multiDocPrompt.format({
         documentCount: documents.length,
-        documentsContent: documentsContent,
+        documentsContent: similarityContext + '\n\n' + documentsContent,
         question: question
       });
       
-      console.log(`✅ Multi-document prompt formatted (${documents.length} documents, optimized)`);
+      console.log(`✅ Multi-document prompt formatted (${documents.length} documents, with similarity analysis)`);
       
     } else {
       // SINGLE DOCUMENT ANALYSIS (backward compatibility) with truncation
@@ -444,30 +714,60 @@ app.post("/ask", async (req, res) => {
     console.error("🔍 Error message:", err.message);
     console.error("📋 Full error:", err);
     
+    // Extract rate limit details from error object or message
+    let waitTime = 'some time';
+    let errorMessage = err.message || 'Unknown error';
+    let errorCode = err.error?.error?.code || err.code;
+    
+    // Groq SDK returns error in err.error.error.message for rate limits
+    if (err.error?.error?.message) {
+      errorMessage = err.error.error.message;
+      console.log("🔍 Extracted nested error message:", errorMessage);
+    }
+    
+    // Extract wait time from error message
+    const rateLimitMatch = errorMessage.match(/Please try again in (.+?)\./);
+    if (rateLimitMatch) {
+      waitTime = rateLimitMatch[1];
+      console.log("⏰ Extracted wait time:", waitTime);
+    }
+    
+    // Check for rate limit error (multiple ways to detect it)
+    const isRateLimitError = 
+      err.status === 429 || 
+      errorCode === 'rate_limit_exceeded' ||
+      errorMessage.includes("Rate limit reached") || 
+      errorMessage.includes("tokens per day") ||
+      errorMessage.includes("rate limit");
+    
     // Handle specific error types for better user experience
-    if (err.message.includes("timeout") || err.message.includes("Timeout")) {
-      res.status(504).json({ 
+    if (isRateLimitError) {
+      console.log("🚫 Rate limit error detected, returning 429 response");
+      return res.status(429).json({ 
+        error: `🚫 AI Rate Limit Reached\n\nYour free tier AI usage limit has been exceeded for today. The Groq AI service has a daily token limit.\n\n⏰ Please try again in: ${waitTime}\n\n💡 To continue using the service immediately:\n• Upgrade to Groq Dev Tier at: https://console.groq.com/settings/billing\n• Or wait ${waitTime} for the limit to reset\n\nSorry for the inconvenience!`,
+        code: "RATE_LIMIT_EXCEEDED",
+        waitTime: waitTime,
+        upgradeUrl: "https://console.groq.com/settings/billing",
+        retryAfter: waitTime
+      });
+    } else if (err.message.includes("timeout") || err.message.includes("Timeout")) {
+      return res.status(504).json({ 
         error: "Request timeout - Document(s) too large or server overloaded. Try with smaller content.",
         code: "TIMEOUT_ERROR"
       });
     } else if (err.message.includes("API key") || err.message.includes("authentication")) {
-      res.status(401).json({ 
+      return res.status(401).json({ 
         error: "Authentication failed - Invalid Groq API key. Get a free key from console.groq.com",
         code: "AUTH_ERROR"
       });
-    } else if (err.message.includes("rate limit") || err.message.includes("quota")) {
-      res.status(429).json({ 
-        error: "Rate limit exceeded - Please wait before making another request",
-        code: "RATE_LIMIT_ERROR"
-      });
     } else if (err.message.includes("reduce the length") || err.message.includes("too large")) {
-      res.status(413).json({ 
+      return res.status(413).json({ 
         error: "Document(s) too large for processing - Please use smaller documents",
         code: "PAYLOAD_TOO_LARGE"
       });
     } else {
-      res.status(500).json({ 
-        error: "Internal server error: " + err.message,
+      return res.status(500).json({ 
+        error: "Internal server error: " + errorMessage,
         code: "INTERNAL_ERROR"
       });
     }
