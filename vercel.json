@@ -1,21 +1,6 @@
 {
   "version": 2,
   "name": "ai-doc-analyser-frontend",
-  "builds": [
-    {
-      "src": "ai-doc-analyser-frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/ai-doc-analyser-frontend/$1"
-    }
-  ],
   "buildCommand": "cd ai-doc-analyser-frontend && npm install && npm run build",
   "outputDirectory": "ai-doc-analyser-frontend/dist",
   "framework": "vite",
