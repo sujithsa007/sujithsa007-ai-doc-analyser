@@ -778,6 +778,10 @@ If you're looking for specific information, please ask about a particular docume
     // Handle specific error types for better user experience
     if (isRateLimitError) {
       console.log("🚫 Rate limit error detected, returning 429 response");
+      
+      // Record rate limit in quota tracker
+      quotaTracker.recordRateLimit(waitTime, `Rate limit exceeded. Please try again in ${waitTime}`);
+      
       return res.status(429).json({ 
         error: `🚫 AI Rate Limit Reached\n\nYour free tier AI usage limit has been exceeded for today. The Groq AI service has a daily token limit.\n\n⏰ Please try again in: ${waitTime}\n\n💡 To continue using the service immediately:\n• Upgrade to Groq Dev Tier at: https://console.groq.com/settings/billing\n• Or wait ${waitTime} for the limit to reset\n\nSorry for the inconvenience!`,
         code: "RATE_LIMIT_EXCEEDED",

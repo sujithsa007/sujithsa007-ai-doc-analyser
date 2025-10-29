@@ -21,6 +21,64 @@ class QuotaTracker {
     // Track requests in rolling windows
     this.requests = []; // Array of timestamps
     this.tokens = [];   // Array of {timestamp, count}
+    
+    // Track rate limit state
+    this.rateLimitActive = false;
+    this.rateLimitResetTime = null;
+    this.rateLimitMessage = null;
+  }
+
+  /**
+   * Record a rate limit error from Groq API
+   * @param {string} waitTime - Time to wait (e.g., "1h23m47" or "2m30s")
+   * @param {string} message - Error message from Groq
+   */
+  recordRateLimit(waitTime, message = null) {
+    this.rateLimitActive = true;
+    this.rateLimitMessage = message;
+    
+    // Parse wait time to seconds
+    const seconds = this.parseWaitTimeToSeconds(waitTime);
+    this.rateLimitResetTime = Date.now() + (seconds * 1000);
+    
+    console.log(`🚫 Rate limit recorded. Reset in ${waitTime} (${seconds}s)`);
+  }
+
+  /**
+   * Parse wait time string to seconds
+   * @param {string} waitTime - e.g., "1h23m47", "2m30s", "45s"
+   * @returns {number} Seconds
+   */
+  parseWaitTimeToSeconds(waitTime) {
+    let totalSeconds = 0;
+    
+    // Parse hours
+    const hoursMatch = waitTime.match(/(\d+)h/);
+    if (hoursMatch) totalSeconds += parseInt(hoursMatch[1]) * 3600;
+    
+    // Parse minutes
+    const minutesMatch = waitTime.match(/(\d+)m/);
+    if (minutesMatch) totalSeconds += parseInt(minutesMatch[1]) * 60;
+    
+    // Parse seconds
+    const secondsMatch = waitTime.match(/(\d+)s/);
+    if (secondsMatch) totalSeconds += parseInt(secondsMatch[1]);
+    
+    return totalSeconds || 60; // Default to 60s if parsing fails
+  }
+
+  /**
+   * Clear rate limit if reset time has passed
+   */
+  checkRateLimitReset() {
+    if (this.rateLimitActive && this.rateLimitResetTime) {
+      if (Date.now() >= this.rateLimitResetTime) {
+        console.log('✅ Rate limit has been reset');
+        this.rateLimitActive = false;
+        this.rateLimitResetTime = null;
+        this.rateLimitMessage = null;
+      }
+    }
   }
 
   /**
@@ -55,7 +113,37 @@ class QuotaTracker {
    */
   getQuotaStats() {
     this.cleanup();
+    this.checkRateLimitReset();
+    
     const now = Date.now();
+
+    // If rate limit is active, show critical status
+    if (this.rateLimitActive && this.rateLimitResetTime) {
+      const resetIn = Math.max(0, Math.ceil((this.rateLimitResetTime - now) / 1000));
+      
+      return {
+        requests: {
+          used: this.requests.length,
+          remaining: 0,
+          limit: this.LIMITS.requestsPerDay,
+          percentageRemaining: 0,
+          perMinuteUsed: this.requests.filter(t => t > now - 60000).length,
+          perMinuteLimit: this.LIMITS.requestsPerMinute
+        },
+        tokens: {
+          used: this.tokens.reduce((sum, t) => sum + t.count, 0),
+          remaining: 0,
+          limit: this.LIMITS.tokensPerMinute,
+          percentageRemaining: 0
+        },
+        resetIn,
+        resetAt: new Date(this.rateLimitResetTime).toISOString(),
+        status: 'critical',
+        rateLimitActive: true,
+        lastUpdated: now,
+        note: this.rateLimitMessage || 'Rate limit exceeded - waiting for reset'
+      };
+    }
 
     // Count requests in different windows
     const oneMinuteAgo = now - 60000;
@@ -103,6 +191,7 @@ class QuotaTracker {
       resetIn,
       resetAt: new Date(now + (resetIn * 1000)).toISOString(),
       status,
+      rateLimitActive: false,
       lastUpdated: now,
       note: 'Local tracking - may not reflect actual API limits'
     };
