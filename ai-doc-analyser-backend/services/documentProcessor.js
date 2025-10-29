@@ -22,6 +22,7 @@ const __dirname = path.dirname(__filename);
 
 /**
  * Supported document types and their MIME types
+ * Note: Unknown file types are automatically accepted and processed as text
  */
 export const SUPPORTED_FORMATS = {
   // PDF Documents
@@ -54,7 +55,27 @@ export const SUPPORTED_FORMATS = {
   
   // OpenDocument formats
   'application/vnd.oasis.opendocument.text': { extension: 'odt', type: 'OpenDocument Text' },
-  'application/vnd.oasis.opendocument.spreadsheet': { extension: 'ods', type: 'OpenDocument Spreadsheet' }
+  'application/vnd.oasis.opendocument.spreadsheet': { extension: 'ods', type: 'OpenDocument Spreadsheet' },
+  
+  // Code and Data files (commonly uploaded)
+  'application/sql': { extension: 'sql', type: 'SQL Script' },
+  'application/x-sql': { extension: 'sql', type: 'SQL Script' },
+  'application/json': { extension: 'json', type: 'JSON Data' },
+  'application/xml': { extension: 'xml', type: 'XML Document' },
+  'text/xml': { extension: 'xml', type: 'XML Document' },
+  'application/javascript': { extension: 'js', type: 'JavaScript File' },
+  'text/javascript': { extension: 'js', type: 'JavaScript File' },
+  'application/typescript': { extension: 'ts', type: 'TypeScript File' },
+  'text/x-python': { extension: 'py', type: 'Python Script' },
+  'text/x-java': { extension: 'java', type: 'Java Source' },
+  'text/x-c': { extension: 'c', type: 'C Source Code' },
+  'text/x-c++': { extension: 'cpp', type: 'C++ Source Code' },
+  'text/x-csharp': { extension: 'cs', type: 'C# Source Code' },
+  'text/yaml': { extension: 'yaml', type: 'YAML Configuration' },
+  'application/x-yaml': { extension: 'yml', type: 'YAML Configuration' },
+  'text/x-log': { extension: 'log', type: 'Log File' },
+  
+  // Note: Any other file type will be automatically accepted and processed as text
 };
 
 /**
@@ -82,11 +103,11 @@ class DocumentProcessor {
         throw new Error(`File size exceeds maximum limit of ${this.maxFileSize / (1024 * 1024)}MB`);
       }
 
-      // Check if format is supported
-      const formatInfo = SUPPORTED_FORMATS[mimeType];
-      if (!formatInfo) {
-        throw new Error(`Unsupported file format: ${mimeType}`);
-      }
+      // Check if format is in our known list, otherwise treat as generic file
+      const formatInfo = SUPPORTED_FORMATS[mimeType] || {
+        extension: path.extname(fileName).slice(1) || 'unknown',
+        type: `${path.extname(fileName).slice(1).toUpperCase() || 'Unknown'} File`
+      };
 
       let content = '';
       let metadata = {
@@ -97,7 +118,8 @@ class DocumentProcessor {
         processingTime: 0,
         pageCount: 0,
         wordCount: 0,
-        characterCount: 0
+        characterCount: 0,
+        isKnownFormat: mimeType in SUPPORTED_FORMATS
       };
 
       // Route to appropriate processor based on MIME type
@@ -120,11 +142,30 @@ class DocumentProcessor {
         content = await this.processImageOCR(fileBuffer);
         metadata.ocrApplied = true;
       }
-      else if (mimeType.startsWith('text/')) {
-        content = fileBuffer.toString('utf-8');
+      else if (mimeType.startsWith('text/') || !metadata.isKnownFormat) {
+        // For known text types OR unknown file types, try to read as UTF-8 text
+        try {
+          content = fileBuffer.toString('utf-8');
+          
+          // Validate that it's readable text (not binary garbage)
+          const readableChars = content.match(/[\x20-\x7E\n\r\t]/g)?.length || 0;
+          const readableRatio = readableChars / content.length;
+          
+          if (readableRatio < 0.7) {
+            // Likely binary file, provide a helpful message
+            content = `[Binary file: ${fileName}]\n\nThis appears to be a binary file that cannot be read as text. File size: ${(fileBuffer.length / 1024).toFixed(2)} KB.\n\nIf this is a text-based file (like SQL, JSON, XML, code, etc.), it may have encoding issues. Try re-saving it with UTF-8 encoding.`;
+            metadata.warning = 'File appears to be binary, not text-readable';
+          } else if (!metadata.isKnownFormat) {
+            metadata.warning = `Unknown file type (${mimeType}). Processed as text file. Supported: PDF, Word, Excel, Images, Text files.`;
+          }
+        } catch (encodingError) {
+          content = `[Unable to read file: ${fileName}]\n\nError: ${encodingError.message}\n\nFile size: ${(fileBuffer.length / 1024).toFixed(2)} KB. This file may be encrypted, corrupted, or in an unsupported binary format.`;
+          metadata.error = encodingError.message;
+        }
       }
       else {
-        throw new Error(`No processor available for: ${mimeType}`);
+        // Fallback for any edge cases
+        content = fileBuffer.toString('utf-8');
       }
 
       // Calculate statistics
@@ -286,11 +327,13 @@ class DocumentProcessor {
 
   /**
    * Validate if a file type is supported
+   * All file types are now accepted - known types get specialized processing,
+   * unknown types are treated as text files
    * @param {string} mimeType - MIME type to check
-   * @returns {boolean} Whether the type is supported
+   * @returns {boolean} Always returns true
    */
   isSupported(mimeType) {
-    return mimeType in SUPPORTED_FORMATS;
+    return true; // Accept all file types
   }
 
   /**

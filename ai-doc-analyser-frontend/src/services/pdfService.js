@@ -243,13 +243,8 @@ export const validatePDFFile = (file) => {
     throw new Error('No file selected. Please choose a document to upload.');
   }
   
-  // Validate file type
-  if (!SUPPORTED_MIME_TYPES.includes(file.type)) {
-    throw new Error(
-      `Invalid file type: ${file.type || 'unknown'}. ` +
-      'Supported formats: PDF, Word (doc/docx), Excel (xls/xlsx/csv), Images (jpg/png/gif), and more.'
-    );
-  }
+  // Note: MIME type validation removed - all file types are now accepted
+  // The backend will handle file processing based on type
   
   // Validate file size
   if (file.size === 0) {
@@ -265,10 +260,15 @@ export const validatePDFFile = (file) => {
     );
   }
   
+  // Log file info for debugging
+  const fileType = file.type || 'unknown';
+  const isKnownType = SUPPORTED_MIME_TYPES.includes(fileType);
+  
   console.log('✅ Document file validation passed:', {
     fileName: file.name,
     fileSize: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
-    mimeType: file.type
+    mimeType: fileType,
+    processingMode: isKnownType ? 'Specialized processor' : 'Generic text processor'
   });
   
   return true;

@@ -20,6 +20,7 @@ import { useSelector } from 'react-redux';
 const MessageBubble = React.memo(({ message, index }) => {
   const isUser = message.role === 'user';
   const isError = message.isError;
+  const isRateLimitError = message.isRateLimitError;
   
   return (
     <div
@@ -37,13 +38,22 @@ const MessageBubble = React.memo(({ message, index }) => {
           minWidth: '120px',
           padding: '14px 18px',
           borderRadius: isUser ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
-          backgroundColor: isUser ? '#007bff' : isError ? '#fee2e2' : '#f8f9fa',
-          color: isUser ? '#fff' : isError ? '#dc2626' : '#374151',
+          backgroundColor: isUser ? '#007bff' : isRateLimitError ? '#fef3c7' : isError ? '#fee2e2' : '#f8f9fa',
+          color: isUser ? '#fff' : isRateLimitError ? '#92400e' : isError ? '#dc2626' : '#374151',
           boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
           wordWrap: 'break-word',
-          border: isError ? '1px solid #fca5a5' : 'none',
+          border: isRateLimitError ? '2px solid #f59e0b' : isError ? '1px solid #fca5a5' : 'none',
         }}
       >
+        {isRateLimitError && (
+          <div style={{ 
+            fontSize: '20px', 
+            marginBottom: '8px',
+            textAlign: 'center'
+          }}>
+            ⏰
+          </div>
+        )}
         <div
           style={{
             fontSize: '15px',

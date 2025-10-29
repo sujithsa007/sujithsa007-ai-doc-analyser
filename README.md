@@ -1,4 +1,4 @@
-# ?? AI Document Analyser
+# 🤖 AI Document Analyser
 
 [![React](https://img.shields.io/badge/React-19.0.0-blue.svg)](https://reactjs.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-20.19%2B-green.svg)](https://nodejs.org/)
@@ -9,105 +9,105 @@
 [![Tests](https://img.shields.io/badge/Frontend%20Tests-40%2F54%20Passing-green.svg)](./ai-doc-analyser-frontend/src/test/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> **?? Ultra-fast AI analysis for 20+ document formats in 2-5 seconds � Full-stack production-ready application**
+> **⚡ Ultra-fast AI analysis for 20+ document formats in 2-5 seconds | Full-stack production-ready application**
 
 A sophisticated, enterprise-grade document analysis assistant powered by LangChain that combines React 19's latest features with Groq's lightning-fast AI inference. Upload PDF, Word, Excel, images (with OCR), and more - engage in intelligent conversations about document content with comprehensive analysis and context-aware responses.
 
-## ?? Why This Application?
+## ✨ Why This Application?
 
-- **? Lightning Fast**: 2-5 second response times (vs 30+ seconds with other solutions)
-- **?? Production Ready**: Comprehensive error handling, testing, and monitoring
-- **?? Multi-Format Support**: PDF, Word, Excel, Images with OCR, and 20+ document types
-- **?? Advanced AI**: Uses Groq's optimized LLaMA-3.3-70B model
-- **?? Modern Stack**: React 19, Redux Toolkit, Express.js, Tesseract.js
-- **?? Responsive**: Works seamlessly on all devices
-- **?? Well Tested**: 27+ tests with 90%+ coverage
+- **⚡ Lightning Fast**: 2-5 second response times (vs 30+ seconds with other solutions)
+- **🏆 Production Ready**: Comprehensive error handling, testing, and monitoring
+- **📚 Multi-Format Support**: PDF, Word, Excel, Images with OCR, and 20+ document types
+- **🧠 Advanced AI**: Uses Groq's optimized LLaMA-3.3-70B model
+- **🚀 Modern Stack**: React 19, Redux Toolkit, Express.js, Tesseract.js
+- **📱 Responsive**: Works seamlessly on all devices
+- **✅ Well Tested**: 27+ tests with 90%+ coverage
 
-## ? Features
+## 🎯 Features
 
-- ?? **Multi-Format Document Processing** - PDF, Word (.docx, .doc), Excel (.xlsx, .xls, .csv)
-- ??? **Image OCR Support** - Extract text from images (JPG, PNG, GIF, BMP, TIFF, WebP)
-- ?? **Text Files** - Markdown, HTML, RTF, plain text, and OpenDocument formats
-- ?? **Ultra-Fast AI Responses** - 2-5 second response times using Groq's LLaMA-3.3-70B
-- ?? **ChatGPT-Style Interface** - Intuitive conversation experience
-- ?? **Real-Time Processing** - No document truncation, full content analysis
-- ?? **Responsive Design** - Works on desktop, tablet, and mobile
-- ?? **Comprehensive Testing** - 58+ tests across frontend and backend with enhanced coverage
-- ? **Optimized Performance** - Code splitting, lazy loading, and caching
-- ?? **Secure & Reliable** - Input validation, error handling, and CORS protection
+- 📄 **Multi-Format Document Processing** - PDF, Word (.docx, .doc), Excel (.xlsx, .xls, .csv)
+- 🖼️ **Image OCR Support** - Extract text from images (JPG, PNG, GIF, BMP, TIFF, WebP)
+- 📝 **Text Files** - Markdown, HTML, RTF, plain text, and OpenDocument formats
+- ⚡ **Ultra-Fast AI Responses** - 2-5 second response times using Groq's LLaMA-3.3-70B
+- 💬 **ChatGPT-Style Interface** - Intuitive conversation experience
+- 🔄 **Real-Time Processing** - No document truncation, full content analysis
+- 📱 **Responsive Design** - Works on desktop, tablet, and mobile
+- 🧪 **Comprehensive Testing** - 58+ tests across frontend and backend with enhanced coverage
+- 🎨 **Optimized Performance** - Code splitting, lazy loading, and caching
+- 🔒 **Secure & Reliable** - Input validation, error handling, and CORS protection
 
-## ??? Project Architecture
+## 🏗️ Project Architecture
 
 This is a **full-stack application** with separate frontend and backend services that work together to provide AI-powered PDF analysis.
 
-### ?? Project Structure
+### 📁 Project Structure
 ```
 ai-doc-analyser/
-+-- ?? ai-doc-analyser-backend/    # ?? Express.js API Server
-�   +-- app.js                     # Main Express application with multi-format support
-�   +-- index.js                   # Server entry point
-�   +-- services/                  # Business logic services
-�   �   +-- documentProcessor.js   # Multi-format document processing (20+ formats)
-�   +-- test/                      # Comprehensive test suite
-�   �   +-- api.test.js            # 18 API endpoint tests
-�   +-- package.json               # Backend dependencies
-�   +-- vitest.config.js           # Test configuration
-�   +-- ARCHITECTURE.md            # Backend architecture docs
-�   +-- README.md                  # Backend-specific documentation
-�   +-- test/                      # API test suites
-�       +-- api.test.js            # Comprehensive API testing
-+-- ?? ai-doc-analyser-frontend/   # ?? React Frontend Application
-�   +-- src/
-�   �   +-- components/            # Reusable React components
-�   �   �   +-- Header.jsx         # Application header
-�   �   �   +-- Sidebar.jsx        # File upload interface
-�   �   �   +-- ChatMessages.jsx   # Message display
-�   �   �   +-- MessageInput.jsx   # User input form
-�   �   �   +-- PDFPreview.jsx     # Document viewer
-�   �   +-- services/              # External integrations
-�   �   �   +-- apiService.js      # Backend API client with enhanced error handling
-�   �   �   +-- pdfService.js      # PDF processing utilities
-�   �   +-- store/                 # Redux state management
-�   �   �   +-- index.js           # Store configuration
-�   �   �   +-- slices/            # Feature-based state slices
-�   �   �       +-- chatSlice.js   # Chat state management
-�   �   �       +-- pdfSlice.js    # Document state management
-�   �   �       +-- uiSlice.js     # UI state management
-�   �   +-- test/                  # Comprehensive test suites
-�   �       +-- components/        # Component tests (5 components)
-�   �       +-- slices/            # State management tests (3 slices)
-�   �       +-- services/          # Service layer tests
-�   +-- package.json               # Frontend dependencies
-�   +-- vite.config.js             # Build configuration
-�   +-- vitest.config.js           # Test configuration
-�   +-- ARCHITECTURE.md            # Frontend architecture docs
-�   +-- README.md                  # Frontend-specific documentation
-+-- README.md                      # ?? Main project documentation (this file)
+├── 🔧 ai-doc-analyser-backend/    # Express.js API Server
+│   ├── app.js                     # Main Express application with multi-format support
+│   ├── index.js                   # Server entry point
+│   ├── services/                  # Business logic services
+│   │   └── documentProcessor.js   # Multi-format document processing (20+ formats)
+│   ├── test/                      # Comprehensive test suite
+│   │   └── api.test.js            # 18 API endpoint tests
+│   ├── package.json               # Backend dependencies
+│   ├── vitest.config.js           # Test configuration
+│   ├── ARCHITECTURE.md            # Backend architecture docs
+│   ├── README.md                  # Backend-specific documentation
+│   └── test/                      # API test suites
+│       └── api.test.js            # Comprehensive API testing
+└── ⚛️ ai-doc-analyser-frontend/   # React Frontend Application
+    ├── src/
+    │   ├── components/            # Reusable React components
+    │   │   ├── Header.jsx         # Application header
+    │   │   ├── Sidebar.jsx        # File upload interface
+    │   │   ├── ChatMessages.jsx   # Message display
+    │   │   ├── MessageInput.jsx   # User input form
+    │   │   └── PDFPreview.jsx     # Document viewer
+    │   ├── services/              # External integrations
+    │   │   ├── apiService.js      # Backend API client with enhanced error handling
+    │   │   └── pdfService.js      # PDF processing utilities
+    │   ├── store/                 # Redux state management
+    │   │   ├── index.js           # Store configuration
+    │   │   └── slices/            # Feature-based state slices
+    │   │       ├── chatSlice.js   # Chat state management
+    │   │       ├── pdfSlice.js    # Document state management
+    │   │       └── uiSlice.js     # UI state management
+    │   └── test/                  # Comprehensive test suites
+    │       ├── components/        # Component tests (5 components)
+    │       ├── slices/            # State management tests (3 slices)
+    │       └── services/          # Service layer tests
+    ├── package.json               # Frontend dependencies
+    ├── vite.config.js             # Build configuration
+    ├── vitest.config.js           # Test configuration
+    ├── ARCHITECTURE.md            # Frontend architecture docs
+    └── README.md                  # Frontend-specific documentation
+└── README.md                      # Main project documentation (this file)
 ```
 
-### ?? Service Communication
+### 🔄 Service Communication
 ```
 +-----------------+    HTTP/JSON    +-----------------+
-�   React App     �?--------------?�  Express API    �
-�  (Port 5173)    �    API Calls    �  (Port 5000)    �
+|   React App     |<-------------->|  Express API    |
+|  (Port 5173)    |    API Calls   |  (Port 5000)    |
 +-----------------+                 +-----------------+
-         �                                   �
-         ?                                   ?
+         |                                   |
+         v                                   v
 +-----------------+                 +-----------------+
-�   PDF.js        �                 �   Groq AI       �
-�   Processing    �                 �   LLaMA-3.3     �
+|   PDF.js        |                 |   Groq AI       |
+|   Processing    |                 |   LLaMA-3.3     |
 +-----------------+                 +-----------------+
 ```
 
-## ?? Quick Start Guide
+## 🚀 Quick Start Guide
 
-### ?? Prerequisites
+### ✅ Prerequisites
 
 - **Node.js** 20.19+ and npm 10+ ([Download](https://nodejs.org/))
 - **Groq API Key** - Free account at [console.groq.com](https://console.groq.com)
 - **Modern Browser** - Chrome, Firefox, Safari, or Edge
 
-### ? One-Command Setup
+### ⚡ One-Command Setup
 
 ```bash
 # Clone and setup everything
@@ -124,7 +124,7 @@ npm run setup:env
 npm run dev
 ```
 
-### ?? Manual Setup (Alternative)
+### 📖 Manual Setup (Alternative)
 
 #### 1. **Clone & Install Dependencies**
 ```bash
@@ -165,22 +165,22 @@ npm run dev
 # Terminal 1 - Backend API
 cd ai-doc-analyser-backend
 npm run dev
-# ? Backend running on http://localhost:5000
+# ✅ Backend running on http://localhost:5000
 
 # Terminal 2 - Frontend App  
 cd ai-doc-analyser-frontend
 npm run dev
-# ? Frontend running on http://localhost:5173
+# ✅ Frontend running on http://localhost:5173
 ```
 
-### ?? Access the Application
+### 🌐 Access the Application
 
 1. **Open Browser**: Navigate to [http://localhost:5173](http://localhost:5173)
 2. **Upload Document**: Click "Choose File" and select a document (PDF, Word, Excel, Image, etc.)
 3. **Start Chatting**: Ask questions about your document content
 4. **Get AI Responses**: Receive detailed answers in 2-5 seconds
 
-### ?? Verify Everything is Working
+### ✅ Verify Everything is Working
 
 ```bash
 # Check backend health
@@ -196,7 +196,7 @@ curl http://localhost:5000/formats
 # Open http://localhost:5173 - you should see the upload interface
 ```
 
-## ?? Usage Guide
+## 📖 Usage Guide
 
 1. **Upload Document** - Click "Choose File" and select your document
    - PDF, Word (.docx, .doc)
@@ -209,28 +209,28 @@ curl http://localhost:5000/formats
 5. **Continue Conversation** - Build on previous questions and answers
 
 ### Supported File Types (20+ Formats)
-#### ?? Documents
-- ? **PDF** - Text-based PDFs (most documents)
-- ? **Word** - .docx, .doc (Microsoft Word documents)
-- ? **Excel** - .xlsx, .xls, .csv (Spreadsheets with all sheets)
-- ? **OpenDocument** - .odt, .ods (LibreOffice/OpenOffice)
+#### 📄 Documents
+- 📕 **PDF** - Text-based PDFs (most documents)
+- 📘 **Word** - .docx, .doc (Microsoft Word documents)
+- 📗 **Excel** - .xlsx, .xls, .csv (Spreadsheets with all sheets)
+- 📙 **OpenDocument** - .odt, .ods (LibreOffice/OpenOffice)
 
-#### ??? Images (with OCR)
-- ? **Common Formats** - .jpg, .jpeg, .png, .gif, .bmp
-- ? **Advanced Formats** - .tiff, .webp (text extraction via Tesseract)
+#### 🖼️ Images (with OCR)
+- 🎨 **Common Formats** - .jpg, .jpeg, .png, .gif, .bmp
+- 🖌️ **Advanced Formats** - .tiff, .webp (text extraction via Tesseract)
 
-#### ?? Text Files
-- ? **Plain Text** - .txt (UTF-8, ASCII)
-- ? **Markdown** - .md, .markdown
-- ? **Web** - .html, .htm
-- ? **Rich Text** - .rtf
+#### 📝 Text Files
+- 📃 **Plain Text** - .txt (UTF-8, ASCII)
+- 📋 **Markdown** - .md, .markdown
+- 🌐 **Web** - .html, .htm
+- 📰 **Rich Text** - .rtf
 
-#### ?? Limitations
-- ? Files up to 50MB
-- ? Password-protected files
-- ? Encrypted documents
+#### ⚠️ Limitations
+- ❌ Files up to 50MB
+- ❌ Password-protected files
+- ❌ Encrypted documents
 
-### ?? Testing
+### 🧪 Testing
 
 ### Run All Tests
 ```bash
@@ -246,104 +246,104 @@ npm test
 npm run test:coverage
 ```
 
-### ?? Test Results
-- **Backend Tests**: 18/18 passing ? (100% success rate - enhanced coverage)
+### 📊 Test Results
+- **Backend Tests**: 18/18 passing ✅ (100% success rate - enhanced coverage)
   - API endpoint validation (5 endpoints)
   - Document processor service tests (6 comprehensive tests)
   - Error handling scenarios (4 tests)
   - CORS and security tests (3 tests)
-- **Frontend Tests**: 40/54 passing ? (74% success rate - improved from 19/22)
+- **Frontend Tests**: 40/54 passing ✅ (74% success rate - improved from 19/22)
   - Component tests (5 components with comprehensive scenarios)
   - Redux slice tests (3 state management slices)
   - Service layer tests (API service with mocking)
 - **Total Coverage**: Enhanced coverage across all critical paths
 - **Integration Tests**: Full API and component integration verified
 
-## ??? Architecture
+## 🏗️ Architecture
 
 ### Backend Architecture
 ```
 +-----------------+    +--------------+    +-------------+
-�   Express.js    �---?�  LangChain   �---?�   Groq AI   �
-�   API Server    �    �  Prompting   �    �  LLaMA-3.3  �
+|   Express.js    |--->|  LangChain   |--->|   Groq AI   |
+|   API Server    |    |  Prompting   |    |  LLaMA-3.3  |
 +-----------------+    +--------------+    +-------------+
-         �
-         ?
+         |
+         v
 +-----------------+
-�  Comprehensive  �
-� Error Handling  �
+|  Comprehensive  |
+| Error Handling  |
 +-----------------+
 ```
 
 ### Frontend Architecture  
 ```
 +-----------------+    +--------------+    +-------------+
-�   React 19      �---?� Redux Store  �---?� PDF.js     �
-�  Components     �    � Management   �    � Processing  �
+|   React 19      |--->| Redux Store  |--->| PDF.js      |
+|  Components     |    | Management   |    | Processing  |
 +-----------------+    +--------------+    +-------------+
-         �
-         ?
+         |
+         v
 +-----------------+
-�    Service      �
-�    Layer        �
+|    Service      |
+|    Layer        |
 +-----------------+
 ```
 
-### ??? Technology Stack & Features
+### 🛠️ Technology Stack & Features
 
-### ?? Backend Stack
+### 🔧 Backend Stack
 | Technology | Version | Purpose | Status |
 |------------|---------|---------|---------|
-| **Node.js** | 20.19+ | JavaScript runtime | ? Production Ready |
-| **Express.js** | 5.1.0 | Web application framework | ? Optimized |
-| **LangChain** | 1.0.1 | AI orchestration framework | ? Full Integration |
-| **Groq API** | Latest | Ultra-fast AI inference (LLaMA-3.3-70B) | ? 2-5s responses |
-| **Multer** | 1.4.5 | File upload middleware | ? Multi-format support |
-| **Mammoth** | 1.8.0 | Word document processing (.docx, .doc) | ? Text extraction |
-| **XLSX** | 0.18.5 | Excel/CSV processing | ? All sheets support |
-| **PDF-Parse** | 1.1.1 | PDF text extraction | ? Full content |
-| **Tesseract.js** | 5.1.1 | OCR for images | ? 100+ languages |
-| **Vitest** | Latest | Modern testing framework | ? 8/8 tests passing |
-| **Supertest** | Latest | HTTP integration testing | ? Full API coverage |
+| **Node.js** | 20.19+ | JavaScript runtime | ✅ Production Ready |
+| **Express.js** | 5.1.0 | Web application framework | ✅ Optimized |
+| **LangChain** | 1.0.1 | AI orchestration framework | ✅ Full Integration |
+| **Groq API** | Latest | Ultra-fast AI inference (LLaMA-3.3-70B) | ✅ 2-5s responses |
+| **Multer** | 1.4.5 | File upload middleware | ✅ Multi-format support |
+| **Mammoth** | 1.8.0 | Word document processing (.docx, .doc) | ✅ Text extraction |
+| **XLSX** | 0.18.5 | Excel/CSV processing | ✅ All sheets support |
+| **PDF-Parse** | 1.1.1 | PDF text extraction | ✅ Full content |
+| **Tesseract.js** | 5.1.1 | OCR for images | ✅ 100+ languages |
+| **Vitest** | Latest | Modern testing framework | ✅ 8/8 tests passing |
+| **Supertest** | Latest | HTTP integration testing | ✅ Full API coverage |
 
-### ?? Frontend Stack  
+### ⚛️ Frontend Stack  
 | Technology | Version | Purpose | Status |
 |------------|---------|---------|---------|
-| **React** | 19.0.0 | UI library with latest features | ? Performance optimized |
-| **Redux Toolkit** | 2.5.0 | Predictable state management | ? Full implementation |
-| **Vite** | 7.1.7 | Next-generation build tool | ? Ultra-fast builds |
-| **PDF.js** | 4.8.69 | Client-side PDF processing | ? Advanced text extraction |
-| **Axios** | 1.7.9 | HTTP client with interceptors | ? Error handling & retries |
-| **Vitest + RTL** | Latest | Component testing suite | ? 19/22 tests passing |
+| **React** | 19.0.0 | UI library with latest features | ✅ Performance optimized |
+| **Redux Toolkit** | 2.5.0 | Predictable state management | ✅ Full implementation |
+| **Vite** | 7.1.7 | Next-generation build tool | ✅ Ultra-fast builds |
+| **PDF.js** | 4.8.69 | Client-side PDF processing | ✅ Advanced text extraction |
+| **Axios** | 1.7.9 | HTTP client with interceptors | ✅ Error handling & retries |
+| **Vitest + RTL** | Latest | Component testing suite | ✅ 19/22 tests passing |
 
-### ?? Key Features & Capabilities
+### 🎯 Key Features & Capabilities
 
 #### Backend Capabilities
-- **? Ultra-Fast Processing**: 2-5 second response times
-- **?? Full Document Analysis**: No content truncation limits
-- **??? Production-Grade**: Comprehensive error handling & validation
-- **?? Performance Monitoring**: Request timing and metrics
-- **?? Security Features**: CORS, input validation, rate limiting ready
-- **?? Comprehensive Testing**: 100% critical path coverage
+- **⚡ Ultra-Fast Processing**: 2-5 second response times
+- **📊 Full Document Analysis**: No content truncation limits
+- **🏆 Production-Grade**: Comprehensive error handling & validation
+- **📈 Performance Monitoring**: Request timing and metrics
+- **🔒 Security Features**: CORS, input validation, rate limiting ready
+- **🧪 Comprehensive Testing**: 100% critical path coverage
 
 #### Frontend Capabilities  
-- **?? Smart State Management**: Redux with normalized data
-- **? Performance Optimized**: React.memo, useMemo, useCallback
-- **?? Fully Responsive**: Mobile, tablet, desktop support
-- **?? Modern UI/UX**: Intuitive drag & drop interface
-- **?? Advanced PDF Viewer**: Built-in document preview
-- **?? Real-time Updates**: Live processing status
-- **? Accessibility**: WCAG 2.1 AA compliant
+- **🎨 Smart State Management**: Redux with normalized data
+- **⚡ Performance Optimized**: React.memo, useMemo, useCallback
+- **📱 Fully Responsive**: Mobile, tablet, desktop support
+- **🎯 Modern UI/UX**: Intuitive drag & drop interface
+- **📄 Advanced PDF Viewer**: Built-in document preview
+- **🔄 Real-time Updates**: Live processing status
+- **♿ Accessibility**: WCAG 2.1 AA compliant
 
-### ?? Development & DevOps Tools
-- **?? Package Management**: npm workspaces for monorepo
-- **?? Code Quality**: ESLint, Prettier, pre-commit hooks
-- **?? Testing**: Vitest, React Testing Library, Supertest
-- **?? Coverage**: V8 coverage reporting with thresholds
-- **?? Build Tools**: Vite for frontend, native Node.js for backend
-- **?? Documentation**: Comprehensive README and architecture docs
+### 🔨 Development & DevOps Tools
+- **📦 Package Management**: npm workspaces for monorepo
+- **✨ Code Quality**: ESLint, Prettier, pre-commit hooks
+- **🧪 Testing**: Vitest, React Testing Library, Supertest
+- **📊 Coverage**: V8 coverage reporting with thresholds
+- **🏗️ Build Tools**: Vite for frontend, native Node.js for backend
+- **📚 Documentation**: Comprehensive README and architecture docs
 
-## ? Performance Optimizations
+## 🚀 Performance Optimizations
 
 ### Frontend Optimizations
 - **Code Splitting** - Lazy load components and routes
@@ -359,45 +359,45 @@ npm run test:coverage
 - **Compression** - Gzip response compression
 - **CORS Optimization** - Minimal overhead
 
-### ?? Configuration & Environment
+### ⚙️ Configuration & Environment
 
-### ?? Backend Configuration (`ai-doc-analyser-backend/.env`)
+### 🔧 Backend Configuration (`ai-doc-analyser-backend/.env`)
 ```bash
-# ?? Required - Get free API key from console.groq.com
+# 🔑 Required - Get free API key from console.groq.com
 GROQ_API_KEY=your_groq_api_key_here
 
-# ?? Server Settings (Optional)
+# 🌐 Server Settings (Optional)
 PORT=5000                      # Server port (default: 5000)
 HOST=localhost                 # Server host (default: localhost)
 NODE_ENV=development          # Environment (development/production/test)
 
-# ? Performance Settings (Optional)
+# ⚡ Performance Settings (Optional)
 REQUEST_TIMEOUT=120000        # Request timeout in ms (2 minutes)
 MAX_CONTENT_LENGTH=52428800   # Max PDF size in bytes (50MB)
 
-# ?? Security Settings (Optional)
+# 🔒 Security Settings (Optional)
 CORS_ORIGINS=http://localhost:5173,http://localhost:3000
 RATE_LIMIT_MAX=100           # Max requests per window
 RATE_LIMIT_WINDOW=900000     # Rate limit window (15 minutes)
 ```
 
-### ?? Frontend Configuration (`ai-doc-analyser-frontend/.env.local`)
+### 🎨 Frontend Configuration (`ai-doc-analyser-frontend/.env.local`)
 ```bash
-# ?? API Configuration (Optional)
+# 🌐 API Configuration (Optional)
 VITE_API_URL=http://localhost:5000    # Backend API URL
 VITE_API_TIMEOUT=30000               # API request timeout
 
-# ?? PDF Settings (Optional)  
+# 📄 PDF Settings (Optional)  
 VITE_MAX_PDF_SIZE=50                 # Max PDF size in MB
 VITE_SUPPORTED_FORMATS=pdf           # Supported file formats
 
-# ?? UI Configuration (Optional)
+# 🎨 UI Configuration (Optional)
 VITE_THEME=light                     # Default theme (light/dark)
 VITE_AUTO_SCROLL=true               # Auto-scroll chat messages
 VITE_SHOW_DEBUG=false               # Show debug information
 ```
 
-### ?? Production Configuration
+### 🚀 Production Configuration
 
 #### Backend Production Settings
 ```bash
@@ -417,7 +417,7 @@ VITE_API_URL=https://api.yourdomain.com
 VITE_ENV=production
 ```
 
-## ?? API Documentation
+## 📚 API Documentation
 
 ### Endpoints
 
@@ -491,25 +491,25 @@ Ask questions about document content
 }
 ```
 
-## ?? Project Documentation
+## 📖 Project Documentation
 
-### ?? Detailed Documentation
+### 📚 Detailed Documentation
 - **[Backend Documentation](./ai-doc-analyser-backend/README.md)** - API endpoints, configuration, testing
 - **[Backend Architecture](./ai-doc-analyser-backend/ARCHITECTURE.md)** - System design, patterns, performance
 - **[Frontend Documentation](./ai-doc-analyser-frontend/README.md)** - Components, state management, testing  
 - **[Frontend Architecture](./ai-doc-analyser-frontend/ARCHITECTURE.md)** - React patterns, optimization, security
 
-### ?? Quick Links
+### 🔗 Quick Links
 - [API Documentation](#api-documentation) - Endpoint reference
 - [Usage Guide](#usage-guide) - How to use the application
 - [Testing Guide](#testing) - Running and writing tests
 - [Contributing Guidelines](#contributing) - Development workflow
 
-## ?? Contributing
+## 🤝 Contributing
 
 We welcome contributions! Here's how to get started:
 
-### ?? Development Workflow
+### 🔄 Development Workflow
 1. **Fork** the repository
 2. **Clone** your fork: `git clone <your-fork-url>`
 3. **Create** a feature branch: `git checkout -b feature/amazing-feature`
@@ -520,14 +520,14 @@ We welcome contributions! Here's how to get started:
 8. **Push** to branch: `git push origin feature/amazing-feature`
 9. **Open** a Pull Request
 
-### ?? Development Guidelines
-- **?? Write Tests**: Add tests for all new features
-- **?? Document**: Update README and comments
-- **?? Code Style**: Follow existing patterns and ESLint rules
-- **? Quality Gates**: Ensure all tests pass and coverage remains high
-- **?? Review**: Code review before merging
+### 📝 Development Guidelines
+- **🧪 Write Tests**: Add tests for all new features
+- **📚 Document**: Update README and comments
+- **✨ Code Style**: Follow existing patterns and ESLint rules
+- **✅ Quality Gates**: Ensure all tests pass and coverage remains high
+- **🔍 Review**: Code review before merging
 
-### ??? Development Commands
+### 🛠️ Development Commands
 ```bash
 # Setup
 npm run install:all      # Install all dependencies
@@ -553,11 +553,11 @@ npm run lint:all         # Lint all code
 npm run clean:all        # Clean all build artifacts
 ```
 
-## ?? License
+## 📄 License
 
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
-## ?? Acknowledgments
+## 🙏 Acknowledgments
 
 - **Groq** - For providing ultra-fast AI inference
 - **LangChain** - For the powerful AI orchestration framework  
@@ -565,9 +565,9 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 - **React Team** - For the amazing React 19 features
 - **Vite Team** - For the lightning-fast build tool
 
-## ? Deployment
+## 🚀 Deployment
 
-### ?? Production Deployment
+### 🌐 Production Deployment
 
 #### Backend Deployment
 ```bash
@@ -597,14 +597,14 @@ EXPOSE 5000
 CMD ["npm", "start"]
 ```
 
-### ?? Hosting Recommendations
+### 🌍 Hosting Recommendations
 - **Backend**: Railway, Render, AWS EC2, DigitalOcean
 - **Frontend**: Vercel, Netlify, AWS S3 + CloudFront
 - **Database**: Not required - stateless application
 
-## ?? Performance Metrics
+## 📊 Performance Metrics
 
-### ?? Benchmark Results
+### 📈 Benchmark Results
 - **AI Response Time**: 2-5 seconds (Groq LLaMA-3.3-70B)
 - **Document Processing**: 
   - PDF: 1-3 seconds for typical documents
@@ -615,46 +615,46 @@ CMD ["npm", "start"]
 - **Memory Usage**: <200MB RAM (multi-format processing)
 - **Bundle Size**: ~500KB gzipped (code splitting)
 
-### ?? Scalability
+### 🔄 Scalability
 - **Concurrent Users**: 100+ with proper backend scaling
 - **Document Size**: Up to 50MB (all formats)
 - **Supported Formats**: 20+ document types
 - **Response Caching**: Redis-ready for high traffic
 - **CDN Ready**: Static assets optimized for CDN distribution
 
-## ?? Security & Privacy
+## 🔒 Security & Privacy
 
-### ??? Security Features
+### 🛡️ Security Features
 - **Input Validation**: Comprehensive request sanitization
 - **CORS Protection**: Configurable origin validation
 - **Rate Limiting**: API request throttling (configurable)
 - **Error Handling**: Safe error messages in production
 - **Environment Security**: Secret management best practices
 
-### ?? Privacy Protection
+### 🔐 Privacy Protection
 - **No Data Storage**: Documents processed in memory only
 - **Client-side Processing**: Document text extraction in browser/server
 - **Session-based**: No persistent user data
 - **API Key Security**: Environment variable protection
 - **Format Safety**: Virus scanning recommended for uploaded files
 
-## ?? Support & Community
+## 💬 Support & Community
 
-### ?? Getting Help
-- ?? **Issues**: [GitHub Issues](https://github.com/your-repo/issues) - Bug reports and feature requests
-- ? **Discussions**: [GitHub Discussions](https://github.com/your-repo/discussions) - Questions and community
-- ? **Documentation**: Comprehensive docs in each project folder
-- ?? **Direct Contact**: Create an issue for direct support
+### 📞 Getting Help
+- 🐛 **Issues**: [GitHub Issues](https://github.com/your-repo/issues) - Bug reports and feature requests
+- 💡 **Discussions**: [GitHub Discussions](https://github.com/your-repo/discussions) - Questions and community
+- 📚 **Documentation**: Comprehensive docs in each project folder
+- 📧 **Direct Contact**: Create an issue for direct support
 
-### ?? Community Guidelines
+### 🤝 Community Guidelines
 - Be respectful and constructive
 - Search existing issues before creating new ones
 - Provide detailed information for bug reports
 - Follow the code of conduct
 
-### ?? Roadmap & Future Features
-- [x] **Multi-Format Support** - PDF, Word, Excel, Images (? Complete!)
-- [x] **OCR Processing** - Text extraction from images (? Complete!)
+### 🗺️ Roadmap & Future Features
+- [x] **Multi-Format Support** - PDF, Word, Excel, Images (✅ Complete!)
+- [x] **OCR Processing** - Text extraction from images (✅ Complete!)
 - [ ] **Multi-file Support** - Upload multiple documents simultaneously
 - [ ] **Document Comparison** - Compare content across documents  
 - [ ] **Export Features** - Save conversations and analyses
@@ -669,14 +669,14 @@ CMD ["npm", "start"]
 
 <div align="center">
 
-### ?? **Star this repository if you find it useful!** ??
+### ⭐ **Star this repository if you find it useful!** ⭐
 
-**Built with ?? using cutting-edge technologies**
+**Built with ❤️ using cutting-edge technologies**
 
-**React 19 � LangChain � Groq AI � Express.js � Tesseract.js**
+**React 19 | LangChain | Groq AI | Express.js | Tesseract.js**
 
-[?? Quick Start](#quick-start-guide) � [?? Documentation](#project-documentation) � [?? Contribute](#contributing) � [? Star on GitHub](https://github.com/your-username/ai-doc-analyser)
+[🚀 Quick Start](#quick-start-guide) · [📚 Documentation](#project-documentation) · [🤝 Contribute](#contributing) · [⭐ Star on GitHub](https://github.com/your-username/ai-doc-analyser)
 
-**Made for developers, by developers** � **Production-ready** � **Open Source**
+**Made for developers, by developers** | **Production-ready** | **Open Source**
 
 </div>
