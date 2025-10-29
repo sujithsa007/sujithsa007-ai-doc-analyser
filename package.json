@@ -59,9 +59,5 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.6"
-  },
-  "workspaces": [
-    "ai-doc-analyser-backend",
-    "ai-doc-analyser-frontend"
-  ]
+  }
 }
