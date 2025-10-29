@@ -2,7 +2,8 @@
   "version": 2,
   "name": "ai-doc-analyser-frontend",
   "buildCommand": "npm install && npm run build",
-  "outputDirectory": "ai-doc-analyser-frontend/dist",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
   "framework": "vite",
   "rewrites": [
     {
