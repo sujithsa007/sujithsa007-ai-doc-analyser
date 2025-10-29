@@ -237,6 +237,36 @@ export const getApiConfig = () => ({
 });
 
 /**
+ * Get API Quota Status
+ * 
+ * Fetches current Groq API quota usage and remaining limits
+ * 
+ * @returns {Promise<Object>} Quota statistics
+ */
+export const getApiQuota = async () => {
+  try {
+    const response = await apiClient.get('/quota', {
+      timeout: 5000 // 5 seconds timeout
+    });
+    
+    console.log('📊 API Quota Status:', response.data.quota);
+    return {
+      success: true,
+      quota: response.data.quota,
+      message: response.data.message
+    };
+    
+  } catch (error) {
+    console.warn('⚠️ Failed to fetch quota status:', error.message);
+    return {
+      success: false,
+      quota: null,
+      error: error.message
+    };
+  }
+};
+
+/**
  * Test API Connection
  * 
  * Performs a comprehensive test of API connectivity and functionality

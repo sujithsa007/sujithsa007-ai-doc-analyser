@@ -20,6 +20,7 @@ import compression from "compression";
 import { ChatGroq } from "@langchain/groq";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import documentProcessor from "./services/documentProcessor.js";
+import quotaTracker from "./services/quotaTracker.js";
 
 // Load environment variables from .env file
 dotenv.config();
@@ -472,6 +473,23 @@ app.get("/formats", (req, res) => {
 });
 
 /**
+ * API Quota Status Endpoint
+ * GET /quota - Returns current Groq API quota usage and remaining limits
+ */
+app.get("/quota", (req, res) => {
+  const quotaStats = quotaTracker.getQuotaStats();
+  res.json({
+    success: true,
+    quota: quotaStats,
+    message: quotaStats.status === 'critical' 
+      ? 'API quota nearly exhausted. Please wait for reset.'
+      : quotaStats.status === 'warning'
+      ? 'API quota running low. Use carefully.'
+      : 'API quota healthy.'
+  });
+});
+
+/**
  * File Upload and Processing Endpoint
  * POST /upload - Upload a document file and extract text content
  * 
@@ -682,6 +700,13 @@ If you're looking for specific information, please ask about a particular docume
 
     // Step 2: Call Groq API for AI analysis
     console.log("🤖 Step 2: Calling Groq AI model...");
+    
+    // Track quota before making the request
+    const estimatedTokens = quotaTracker.constructor.estimateTokens(
+      formattedPrompt + (question || '')
+    );
+    quotaTracker.recordRequest(estimatedTokens);
+    
     const aiStartTime = Date.now();
     
     const result = await model.invoke(formattedPrompt);
@@ -690,9 +715,13 @@ If you're looking for specific information, please ask about a particular docume
     const aiDuration = ((aiEndTime - aiStartTime) / 1000).toFixed(2);
     const totalDuration = ((aiEndTime - startRequestTime) / 1000).toFixed(2);
     
+    // Get updated quota stats
+    const quotaStats = quotaTracker.getQuotaStats();
+    
     // Success logging
     console.log(`✅ AI analysis completed in ${aiDuration}s`);
     console.log(`📊 Total request time: ${totalDuration}s`);
+    console.log(`📊 Quota: ${quotaStats.requests.percentageRemaining}% requests remaining, ${quotaStats.tokens.percentageRemaining}% tokens remaining`);
     console.log("📝 Response preview:", result.content.substring(0, 150) + "...\n");
 
     // Return successful analysis
@@ -703,6 +732,12 @@ If you're looking for specific information, please ask about a particular docume
         aiResponseTime: aiDuration,
         documentCount: isMultiDoc ? documents.length : 1,
         analysisMode: isMultiDoc ? 'multi-document' : 'single-document'
+      },
+      quota: {
+        requestsRemaining: quotaStats.requests.percentageRemaining,
+        tokensRemaining: quotaStats.tokens.percentageRemaining,
+        resetIn: quotaStats.resetIn,
+        status: quotaStats.status
       }
     });
     
