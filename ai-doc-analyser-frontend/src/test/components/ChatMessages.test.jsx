@@ -12,7 +12,31 @@ const createMockStore = (initialState = {}) => {
       chat: chatReducer,
       pdf: pdfReducer,
     },
-    preloadedState: initialState,
+    preloadedState: {
+      chat: {
+        messages: [],
+        isAsking: false,
+        question: '',
+        error: null,
+        conversationHistory: [],
+        suggestedFollowUps: [],
+        currentDocumentId: null,
+        conversationStarted: null,
+        ...initialState.chat
+      },
+      pdf: {
+        content: '',
+        selectedFile: null,
+        isParsing: false,
+        error: null,
+        documents: [],
+        activeDocumentId: null,
+        documentStats: {},
+        comparisonMode: false,
+        selectedForComparison: [],
+        ...initialState.pdf
+      }
+    },
   });
 };
 

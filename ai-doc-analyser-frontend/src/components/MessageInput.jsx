@@ -276,15 +276,6 @@ const MessageInput = () => {
           <span>Upload a document to start asking questions</span>
         )}
       </div>
-      {/* Error state display */}
-      {/** We show the current error below for accessibility and test visibility */}
-      {/** The tests expect specific error text to appear when error exists */}
-      {/** aria-live polite for screen readers */}
-      {error && (
-        <div role="alert" style={styles.error} aria-live="polite">
-          {error}
-        </div>
-      )}
     </div>
   );
 };
@@ -344,12 +335,6 @@ const styles = {
   loadingDots: {
     animation: 'pulse 1.5s ease-in-out infinite',
     fontSize: '18px',
-  },
-  error: {
-    marginTop: '6px',
-    fontSize: '12px',
-    color: '#dc2626',
-    textAlign: 'center',
   }
 };
 

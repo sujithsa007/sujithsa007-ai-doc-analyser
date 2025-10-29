@@ -31,7 +31,7 @@ describe('apiService', () => {
     });
 
     it('should throw error for empty content', async () => {
-      await expect(askQuestion('question', '')).rejects.toThrow('Document content is required');
+      await expect(askQuestion('question', '')).rejects.toThrow('Document content or documents array is required');
     });
 
     it('should handle network errors', async () => {

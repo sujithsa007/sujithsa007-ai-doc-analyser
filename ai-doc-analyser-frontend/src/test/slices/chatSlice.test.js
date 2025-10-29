@@ -14,6 +14,10 @@ describe('chatSlice', () => {
     question: '',
     isAsking: false,
     error: null,
+    conversationHistory: [],
+    suggestedFollowUps: [],
+    currentDocumentId: null,
+    conversationStarted: null,
   };
 
   it('should return initial state', () => {
@@ -28,7 +32,8 @@ describe('chatSlice', () => {
     };
     const actual = chatReducer(initialState, addMessage(message));
     expect(actual.messages).toHaveLength(1);
-    expect(actual.messages[0]).toEqual(message);
+    expect(actual.messages[0]).toMatchObject(message);
+    expect(actual.messages[0]).toHaveProperty('id');
   });
 
   it('should handle multiple messages', () => {
