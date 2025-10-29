@@ -16,11 +16,25 @@ const TemplateSelector = () => {
   const { content } = useSelector((state) => state.pdf);
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const allTemplates = [
     ...Object.entries(templates).map(([id, template]) => ({ id, ...template, type: 'built-in' })),
     ...customTemplates.map((template) => ({ ...template, type: 'custom' })),
   ];
+
+  // Get unique categories
+  const categories = ['All', ...new Set(allTemplates.map(t => t.category || 'Other'))];
+
+  // Filter templates by category and search
+  const filteredTemplates = allTemplates.filter(template => {
+    const matchesCategory = selectedCategory === 'All' || template.category === selectedCategory;
+    const matchesSearch = !searchQuery || 
+      template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (template.category && template.category.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesCategory && matchesSearch;
+  });
 
   const handleSelectTemplate = (templateId) => {
     dispatch(setActiveTemplate(templateId));
@@ -92,7 +106,32 @@ const TemplateSelector = () => {
     <div className="template-selector">
       <div className="template-selector-header">
         <h3>📋 Analysis Templates</h3>
-        <p>Run pre-built question sets for faster analysis</p>
+        <p>Choose from 50+ pre-built question sets for instant document analysis</p>
+      </div>
+
+      {/* Search and Filter */}
+      <div className="template-filters">
+        <div className="search-box">
+          <input
+            type="text"
+            placeholder="🔍 Search templates..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="template-search"
+          />
+        </div>
+
+        <div className="category-tabs">
+          {categories.map((category) => (
+            <button
+              key={category}
+              className={`category-tab ${selectedCategory === category ? 'active' : ''}`}
+              onClick={() => setSelectedCategory(category)}
+            >
+              {category} ({allTemplates.filter(t => category === 'All' || t.category === category).length})
+            </button>
+          ))}
+        </div>
       </div>
 
       {isRunning && (
@@ -105,7 +144,7 @@ const TemplateSelector = () => {
       )}
 
       <div className="template-grid">
-        {allTemplates.map((template) => (
+        {filteredTemplates.map((template) => (
           <div
             key={template.id}
             className={`template-card ${activeTemplate === template.id ? 'active' : ''}`}
@@ -113,7 +152,12 @@ const TemplateSelector = () => {
           >
             <div className="template-header">
               <span className="template-icon">{template.icon || '📄'}</span>
-              <h4>{template.name}</h4>
+              <div className="template-title-group">
+                <h4>{template.name}</h4>
+                {template.category && (
+                  <span className="category-badge">{template.category}</span>
+                )}
+              </div>
               {template.type === 'custom' && (
                 <span className="custom-badge">Custom</span>
               )}
@@ -125,12 +169,12 @@ const TemplateSelector = () => {
               </p>
               {template.questions && template.questions.length > 0 && (
                 <ul className="question-preview">
-                  {template.questions.slice(0, 3).map((q, idx) => (
+                  {template.questions.slice(0, 2).map((q, idx) => (
                     <li key={idx}>{q}</li>
                   ))}
-                  {template.questions.length > 3 && (
+                  {template.questions.length > 2 && (
                     <li className="more-questions">
-                      +{template.questions.length - 3} more...
+                      +{template.questions.length - 2} more...
                     </li>
                   )}
                 </ul>
@@ -150,6 +194,13 @@ const TemplateSelector = () => {
           </div>
         ))}
       </div>
+
+      {filteredTemplates.length === 0 && (
+        <div className="no-templates">
+          <p>No templates found matching "{searchQuery}"</p>
+          <p className="hint">Try a different search term or category</p>
+        </div>
+      )}
 
       {allTemplates.length === 0 && (
         <div className="no-templates">
