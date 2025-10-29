@@ -11,23 +11,31 @@
 
 import React, { useCallback, useMemo, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { setSelectedFile, setContent, setIsParsing, setError } from '../store/slices/pdfSlice';
+import { setSelectedFile, setContent, setIsParsing, setError, addDocument, setActiveDocument } from '../store/slices/pdfSlice';
 import { togglePreview } from '../store/slices/uiSlice';
 import { clearMessages } from '../store/slices/chatSlice';
 import { extractTextFromPDF, validatePDFFile } from '../services/pdfService';
 import PDFPreview from './PDFPreview';
+import DocumentList from './DocumentList';
+import DocumentDashboard from './DocumentDashboard';
+import queryCache from '../services/queryCache';
 
 /**
  * File Upload Status Component
  * Shows current processing status with visual feedback
+ * Supports multi-file upload progress display
  */
-const FileStatus = React.memo(({ isParsing, selectedFile, content }) => {
+const FileStatus = React.memo(({ isParsing, selectedFile, content, documents }) => {
   if (isParsing) {
     return (
       <div style={styles.statusCard}>
         <div style={styles.processingStatus}>
           <span className="loading" style={styles.loadingIcon}>⏳</span>
-          <span style={styles.processingText}>Processing document...</span>
+          <span style={styles.processingText}>
+            {documents.length > 0 
+              ? `Processing documents... (${documents.length} uploaded)`
+              : 'Processing document...'}
+          </span>
         </div>
         <div style={styles.progressBar}>
           <div style={styles.progressFill} className="loading"></div>
@@ -67,85 +75,139 @@ const FileStatus = React.memo(({ isParsing, selectedFile, content }) => {
  * 
  * Handles PDF document upload, processing, and management
  * Provides preview functionality and file status feedback
+ * 
+ * @param {Object} props - Component props
+ * @param {boolean} props.showDashboard - Whether to show the document dashboard
+ * @param {Function} props.onToggleDashboard - Callback to toggle dashboard visibility
  */
-const Sidebar = () => {
+const Sidebar = ({ showDashboard = false, onToggleDashboard }) => {
   const dispatch = useDispatch();
   const fileInputRef = useRef(null);
   
   // Redux state selectors
-  const { content, selectedFile, isParsing, error } = useSelector((state) => state.pdf);
+  const { content, selectedFile, isParsing, error, documents, activeDocumentId } = useSelector((state) => state.pdf);
   const { showPreview } = useSelector((state) => state.ui);
 
   // Memoized computed values
-  const hasDocument = useMemo(() => Boolean(content && selectedFile), [content, selectedFile]);
+  const hasDocument = useMemo(() => Boolean(content && selectedFile) || documents.length > 0, [content, selectedFile, documents.length]);
   const canUpload = useMemo(() => !isParsing, [isParsing]);
 
   /**
    * Handles document file upload and processing
-   * Validates file, uploads to backend, and updates Redux state
+   * Supports multiple file uploads - processes ALL files in parallel for speed
+   * Validates files, uploads to backend, and updates Redux state
    */
   const handleFileChange = useCallback(async (event) => {
-    const file = event.target.files[0];
+    const files = Array.from(event.target.files || []);
     
-    if (!file) return;
+    if (!files || files.length === 0) return;
 
-    console.log('📁 Processing document file:', file.name, `(${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+    console.log(`📁 Processing ${files.length} document file(s) in parallel for maximum speed...`);
 
-    try {
-      // Validate file
-      validatePDFFile(file);
-      
-      // Update state for processing
-      dispatch(setSelectedFile(file));
-      dispatch(setIsParsing(true));
-      dispatch(setError(null));
-      dispatch(clearMessages()); // Clear previous chat history
+    // Update UI state immediately
+    dispatch(setIsParsing(true));
+    dispatch(setError(null));
+    dispatch(clearMessages());
+    
+    // Clear query cache when new documents are uploaded
+    queryCache.clear();
+    console.log('🗑️ Query cache cleared for new document upload');
 
-      // Check if it's a PDF - use client-side processing for PDFs, backend for others
-      const isPDF = file.type === 'application/pdf';
-      const startTime = Date.now();
-      let extractedText;
+    const startTime = Date.now();
 
-      if (isPDF) {
-        // Use client-side PDF.js for PDF files
-        extractedText = await extractTextFromPDF(file);
-      } else {
-        // Use backend API for all other formats (Word, Excel, Images, etc.)
-        const { uploadDocument } = await import('../services/apiService.js');
-        const result = await uploadDocument(file);
-        extractedText = result?.text || '';
+    // Process ALL files in parallel using Promise.all
+    const processingPromises = files.map(async (file, index) => {
+      console.log(`📄 Starting file ${index + 1}/${files.length}:`, file.name, `(${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+
+      try {
+        // Validate file
+        validatePDFFile(file);
+
+        // Check if it's a PDF - use client-side processing for PDFs, backend for others
+        const isPDF = file.type === 'application/pdf';
+        const fileStartTime = Date.now();
+        let extractedText;
+
+        if (isPDF) {
+          // Use client-side PDF.js for PDF files (faster, no network call)
+          extractedText = await extractTextFromPDF(file);
+        } else {
+          // Use backend API for all other formats (Word, Excel, Images, etc.)
+          const { uploadDocument } = await import('../services/apiService.js');
+          const result = await uploadDocument(file);
+          extractedText = result?.text || '';
+          
+          console.log('📊 Document metadata:', result?.metadata);
+        }
+
+        const processingTime = ((Date.now() - fileStartTime) / 1000).toFixed(1);
         
-        console.log('📊 Document metadata:', result?.metadata);
+        // Validate extracted text
+        if (!extractedText || typeof extractedText !== 'string') {
+          throw new Error(`Failed to extract text from ${file.name}. The file might be empty or corrupted.`);
+        }
+        
+        console.log(`✅ File ${index + 1}/${files.length} processed in ${processingTime}s - ${extractedText.length} characters extracted`);
+        
+        return {
+          success: true,
+          file,
+          content: extractedText,
+          index
+        };
+        
+      } catch (error) {
+        console.error(`❌ Error processing ${file.name}:`, error);
+        return {
+          success: false,
+          file,
+          error: error.message,
+          index
+        };
       }
+    });
 
-      const processingTime = ((Date.now() - startTime) / 1000).toFixed(1);
-      
-      // Validate extracted text
-      if (!extractedText || typeof extractedText !== 'string') {
-        throw new Error('Failed to extract text from document. The file might be empty or corrupted.');
+    // Wait for all files to be processed
+    const results = await Promise.all(processingPromises);
+    
+    const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`\n⚡ All ${files.length} files processed in ${totalTime}s (parallel processing)`);
+
+    // Add successful files to documents array
+    let successCount = 0;
+    let errorCount = 0;
+
+    results.forEach((result) => {
+      if (result.success) {
+        // Add to documents array
+        dispatch(addDocument({
+          file: result.file,
+          content: result.content,
+          summary: null,
+          tags: [],
+        }));
+        
+        // Update legacy state with last successful file
+        dispatch(setContent(result.content));
+        dispatch(setSelectedFile(result.file));
+        
+        successCount++;
+      } else {
+        errorCount++;
+        dispatch(setError(`Error in ${result.file.name}: ${result.error}`));
       }
-      
-      console.log(`✅ Document processed in ${processingTime}s - ${extractedText.length} characters extracted`);
-      
-      // Update state with extracted content
-      dispatch(setContent(extractedText));
-      dispatch(setIsParsing(false));
-      
-    } catch (error) {
-      console.error('❌ Document processing error:', error);
-      
-      // Handle error state
-      dispatch(setError(error.message));
-      dispatch(setIsParsing(false));
-      
-      // Clear file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-      
-      // User-friendly error notification
-      alert(`Document Processing Error: ${error.message}`);
+    });
+
+    // All files processed
+    dispatch(setIsParsing(false));
+    
+    // Clear file input to allow re-uploading same files
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
+    
+    console.log(`✅ Upload complete: ${successCount} successful, ${errorCount} failed`);
+    
   }, [dispatch]);
 
   /**
@@ -173,7 +235,7 @@ const Sidebar = () => {
           Document Manager
         </h2>
         <p style={styles.subtitle}>
-          Upload any document to start analyzing
+          Upload multiple documents for cross-analysis
         </p>
       </div>
       
@@ -182,11 +244,12 @@ const Sidebar = () => {
         <input
           ref={fileInputRef}
           type="file"
+          multiple
           accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.webp,.txt,.md,.html,.rtf,.odt,.ods"
           onChange={handleFileChange}
           disabled={!canUpload}
           style={styles.hiddenInput}
-          aria-label="Document file upload"
+          aria-label="Document file upload (multiple files supported)"
         />
         
         <button
@@ -197,15 +260,18 @@ const Sidebar = () => {
             opacity: canUpload ? 1 : 0.6,
             cursor: canUpload ? 'pointer' : 'not-allowed',
           }}
-          aria-label="Choose document file to upload"
+          aria-label="Choose document files to upload"
         >
           <span style={styles.uploadIcon}>📎</span>
-          {isParsing ? 'Processing...' : 'Choose Document'}
+          {isParsing ? 'Processing...' : 'Choose Documents'}
         </button>
         
         {/* File format help */}
         <p style={styles.helpText}>
-          Supports PDF, Word, Excel, Images, and more (up to 50MB)
+          Supports PDF, Word, Excel, Images, and more (up to 50MB each)
+        </p>
+        <p style={styles.multiFileHint}>
+          💡 Tip: Select multiple files to analyze together (Ctrl+Click or Cmd+Click)
         </p>
       </div>
 
@@ -213,8 +279,20 @@ const Sidebar = () => {
       <FileStatus 
         isParsing={isParsing} 
         selectedFile={selectedFile} 
-        content={content} 
+        content={content}
+        documents={documents}
       />
+
+      {/* Document List - Multi-document Support */}
+      {documents.length > 0 && (
+        <div style={styles.documentListSection}>
+          <h3 style={styles.sectionTitle}>
+            <span role="img" aria-label="Documents">📚</span>
+            Uploaded Documents ({documents.length})
+          </h3>
+          <DocumentList />
+        </div>
+      )}
 
       {/* Error Display */}
       {error && (
@@ -243,6 +321,30 @@ const Sidebar = () => {
           {showPreview && (
             <div style={styles.previewContainer}>
               <PDFPreview content={content} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Document Dashboard Section */}
+      {hasDocument && onToggleDashboard && (
+        <div style={styles.dashboardSection}>
+          <button
+            onClick={onToggleDashboard}
+            style={styles.dashboardButton}
+            aria-expanded={showDashboard}
+            aria-label={showDashboard ? 'Hide analytics dashboard' : 'Show analytics dashboard'}
+          >
+            <span style={styles.dashboardIcon}>
+              {showDashboard ? '📊' : '📈'}
+            </span>
+            {showDashboard ? 'Hide Analytics' : 'Show Analytics'}
+          </button>
+          
+          {/* Document Dashboard Component */}
+          {showDashboard && (
+            <div style={styles.dashboardContainer}>
+              <DocumentDashboard />
             </div>
           )}
         </div>
@@ -312,6 +414,14 @@ const styles = {
     fontSize: '12px',
     color: '#9ca3af',
     textAlign: 'center',
+  },
+  multiFileHint: {
+    margin: '6px 0 0 0',
+    fontSize: '11px',
+    color: '#007bff',
+    textAlign: 'center',
+    fontWeight: '500',
+    fontStyle: 'italic',
   },
   statusCard: {
     padding: '16px',
@@ -421,6 +531,49 @@ const styles = {
     fontSize: '14px',
   },
   previewContainer: {
+    backgroundColor: '#fff',
+    borderRadius: '6px',
+    border: '1px solid #dee2e6',
+    overflow: 'hidden',
+  },
+  documentListSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+  },
+  sectionTitle: {
+    margin: 0,
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#495057',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  dashboardSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+  },
+  dashboardButton: {
+    padding: '12px 16px',
+    backgroundColor: '#f8f9fa',
+    border: '1px solid #dee2e6',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: '500',
+    color: '#495057',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    transition: 'all 0.2s ease',
+  },
+  dashboardIcon: {
+    fontSize: '14px',
+  },
+  dashboardContainer: {
     backgroundColor: '#fff',
     borderRadius: '6px',
     border: '1px solid #dee2e6',

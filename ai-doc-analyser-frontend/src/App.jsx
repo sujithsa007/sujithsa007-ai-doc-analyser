@@ -11,13 +11,15 @@
  * - Optimized styling for performance
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Provider } from 'react-redux';
 import store from './store';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import ChatMessages from './components/ChatMessages';
 import MessageInput from './components/MessageInput';
+import DocumentDashboard from './components/DocumentDashboard';
+import TemplateSelector from './components/TemplateSelector';
 import './App.css';
 
 /**
@@ -28,21 +30,29 @@ import './App.css';
  * - Header with app branding and controls
  * - Sidebar for PDF management and chat history
  * - Chat interface for AI interactions
+ * - Document Dashboard for analytics
+ * - Template Selector modal for batch analysis
  * 
  * @returns {JSX.Element} Complete application layout
  */
 function App() {
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
+
   return (
     <Provider store={store}>
       {/* Main application container with full viewport height */}
       <div className="app-container">
         {/* Application header */}
-        <Header />
+        <Header onOpenTemplates={() => setShowTemplates(true)} />
         
         {/* Main content area with sidebar and chat */}
         <div className="app-main">
           {/* PDF upload and document management sidebar */}
-          <Sidebar />
+          <Sidebar 
+            showDashboard={showDashboard}
+            onToggleDashboard={() => setShowDashboard(!showDashboard)}
+          />
           
           {/* Chat interface area */}
           <main className="chat-container">
@@ -53,6 +63,19 @@ function App() {
             <MessageInput />
           </main>
         </div>
+
+        {/* Template Selector Modal */}
+        {showTemplates && (
+          <div className="modal-overlay" onClick={() => setShowTemplates(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Analysis Templates</h2>
+                <button className="btn-close" onClick={() => setShowTemplates(false)}>×</button>
+              </div>
+              <TemplateSelector onClose={() => setShowTemplates(false)} />
+            </div>
+          </div>
+        )}
       </div>
     </Provider>
   );

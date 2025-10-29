@@ -62,38 +62,61 @@ apiClient.interceptors.response.use(
 );
 
 /**
- * Ask a question about PDF content using AI
+ * Ask a question about document(s) using AI
  * 
- * Sends the document content and user question to the AI backend
- * for intelligent analysis and response generation.
+ * Sends the document content(s) and user question to the AI backend
+ * for intelligent analysis and response generation. Supports both single
+ * and multi-document analysis with cross-document verification.
  * 
- * @param {string} question - User's question about the document
- * @param {string} content - Full PDF text content
+ * @param {string} question - User's question about the document(s)
+ * @param {string} content - Full document text content (for single doc - backward compatibility)
+ * @param {Array} documents - Array of document objects for multi-document analysis (optional)
  * @returns {Promise<string>} AI-generated answer
  * @throws {Error} Detailed error message for different failure scenarios
  */
-export const askQuestion = async (question, content) => {
+export const askQuestion = async (question, content, documents = null) => {
   // Input validation
   if (!question?.trim()) {
     throw new Error('Question cannot be empty');
   }
   
-  if (!content?.trim()) {
-    throw new Error('Document content is required');
+  const isMultiDoc = documents && Array.isArray(documents) && documents.length > 0;
+  
+  if (!isMultiDoc && !content?.trim()) {
+    throw new Error('Document content or documents array is required');
   }
 
   // Log request details
   console.log('🤖 Sending AI request:', {
     questionLength: question.length,
-    contentLength: content.length,
+    mode: isMultiDoc ? 'multi-document' : 'single-document',
+    documentCount: isMultiDoc ? documents.length : 1,
     timestamp: new Date().toISOString()
   });
 
+  if (isMultiDoc) {
+    console.log('📚 Documents:', documents.map((d, i) => ({
+      index: i + 1,
+      fileName: d.fileName,
+      contentLength: d.content?.length || 0
+    })));
+  } else {
+    console.log('📄 Single document content length:', content.length);
+  }
+
   try {
-    const response = await apiClient.post('/ask', {
+    const requestBody = {
       question: question.trim(),
-      content: content.trim(),
-    });
+    };
+
+    // Add either single content or multiple documents
+    if (isMultiDoc) {
+      requestBody.documents = documents;
+    } else {
+      requestBody.content = content.trim();
+    }
+
+    const response = await apiClient.post('/ask', requestBody);
     
     // Validate response structure
     if (!response.data?.answer) {
@@ -106,7 +129,8 @@ export const askQuestion = async (question, content) => {
       console.log('📊 AI Response Metrics:', {
         processingTime: metadata.processingTime,
         aiResponseTime: metadata.aiResponseTime,
-        contentLength: metadata.contentLength
+        documentCount: metadata.documentCount,
+        analysisMode: metadata.analysisMode
       });
     }
     
@@ -125,7 +149,7 @@ export const askQuestion = async (question, content) => {
       // Handle specific error codes
       switch (errorCode) {
         case 'TIMEOUT_ERROR':
-          throw new Error('Request timed out. The document might be too large or the server is busy. Please try again with a smaller document.');
+          throw new Error('Request timed out. The document(s) might be too large or the server is busy. Please try again with smaller documents.');
         
         case 'AUTH_ERROR':
           throw new Error('Authentication failed. The API key might be invalid or expired.');
@@ -134,7 +158,7 @@ export const askQuestion = async (question, content) => {
           throw new Error('Rate limit exceeded. Please wait a moment before making another request.');
         
         case 'PAYLOAD_TOO_LARGE':
-          throw new Error('Document is too large for processing. Please try with a smaller PDF file.');
+          throw new Error('Document(s) too large for processing. Please try with smaller files.');
         
         default:
           throw new Error(errorMessage);

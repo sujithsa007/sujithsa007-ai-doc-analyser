@@ -14,6 +14,7 @@ import React, { useCallback, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { setQuestion, clearQuestion, addMessage, setIsAsking, setError } from '../store/slices/chatSlice';
 import { askQuestion } from '../services/apiService';
+import queryCache from '../services/queryCache';
 
 /**
  * MessageInput Component
@@ -28,29 +29,39 @@ const MessageInput = () => {
   
   // Redux state selectors
   const { question, isAsking } = useSelector((state) => state.chat);
-  const { content, isParsing } = useSelector((state) => state.pdf);
+  const { content, isParsing, documents } = useSelector((state) => state.pdf);
+
+  // Check if we have any documents uploaded
+  const hasDocuments = useMemo(() => 
+    documents.length > 0 || Boolean(content),
+    [documents.length, content]
+  );
 
   // Memoized computed values for performance
   const isDisabled = useMemo(() => 
-    !content || isParsing || isAsking || !question.trim(), 
-    [content, isParsing, isAsking, question]
+    !hasDocuments || isParsing || isAsking || !question.trim(), 
+    [hasDocuments, isParsing, isAsking, question]
   );
 
-  const placeholder = useMemo(() => 
-    content 
-      ? "Ask any question about your document" 
-      : "Upload a document first to start chatting",
-    [content]
-  );
+  const placeholder = useMemo(() => {
+    if (!hasDocuments) {
+      return "Upload a document first to start chatting";
+    }
+    if (documents.length > 1) {
+      return `Ask questions about your ${documents.length} documents`;
+    }
+    return "Ask any question about your document";
+  }, [hasDocuments, documents.length]);
 
   /**
    * Handles sending a question to the AI assistant
    * Validates input, dispatches actions, and handles API response
+   * Supports both single and multi-document analysis
    */
   const handleAsk = useCallback(async () => {
     // Validation checks
-    if (!content?.trim()) {
-      dispatch(setError('Please upload a PDF file first.'));
+    if (!hasDocuments) {
+      dispatch(setError('Please upload a document first.'));
       return;
     }
     
@@ -77,15 +88,61 @@ const MessageInput = () => {
     dispatch(setError(null)); // Clear any previous errors
 
     try {
-      console.log('🤖 Sending question to AI:', currentQuestion);
       const startTime = Date.now();
+      let answer;
+      let cacheHit = false;
       
-      // Call AI service
-      const answer = await askQuestion(currentQuestion, content);
+      // Determine if multi-document or single document analysis
+      if (documents.length > 0) {
+        // MULTI-DOCUMENT ANALYSIS with caching
+        const documentIds = documents.map(d => d.id);
+        
+        // Check cache first
+        const cachedAnswer = queryCache.get(currentQuestion, documentIds);
+        if (cachedAnswer) {
+          answer = cachedAnswer;
+          cacheHit = true;
+          console.log('⚡ Using cached response (instant!)');
+        } else {
+          console.log(`🤖 Sending question to AI with ${documents.length} document(s):`, currentQuestion);
+          console.log('📚 Documents:', documents.map(d => d.fileName));
+          
+          // Prepare documents array with required fields
+          const docsToSend = documents.map(doc => ({
+            fileName: doc.fileName,
+            documentType: doc.file?.type || 'Unknown',
+            content: doc.content
+          }));
+          
+          // Call AI service with multi-document support
+          answer = await askQuestion(currentQuestion, null, docsToSend);
+          
+          // Cache the response
+          queryCache.set(currentQuestion, documentIds, answer);
+        }
+        
+      } else {
+        // SINGLE DOCUMENT ANALYSIS with caching
+        const documentIds = ['single-doc'];
+        
+        // Check cache first
+        const cachedAnswer = queryCache.get(currentQuestion, documentIds);
+        if (cachedAnswer) {
+          answer = cachedAnswer;
+          cacheHit = true;
+          console.log('⚡ Using cached response (instant!)');
+        } else {
+          console.log('🤖 Sending question to AI (single document):', currentQuestion);
+          answer = await askQuestion(currentQuestion, content);
+          
+          // Cache the response
+          queryCache.set(currentQuestion, documentIds, answer);
+        }
+      }
       
       const endTime = Date.now();
       const responseTime = ((endTime - startTime) / 1000).toFixed(1);
-      console.log(`✅ AI response received in ${responseTime}s`);
+      console.log(`✅ AI response received in ${responseTime}s${cacheHit ? ' (from cache)' : ''}`);
       
       // Create assistant message
       const assistantMessage = {
@@ -95,7 +152,7 @@ const MessageInput = () => {
           hour: '2-digit', 
           minute: '2-digit' 
         }),
-        responseTime: responseTime
+        responseTime: cacheHit ? '0.0 (cached)' : responseTime
       };
       
       dispatch(addMessage(assistantMessage));
@@ -120,7 +177,7 @@ const MessageInput = () => {
     } finally {
       dispatch(setIsAsking(false));
     }
-  }, [content, question, dispatch]);
+  }, [hasDocuments, question, content, documents, dispatch]);
 
   /**
    * Handles keyboard shortcuts
@@ -154,11 +211,11 @@ const MessageInput = () => {
           value={question}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          disabled={!content || isParsing || isAsking}
+          disabled={!hasDocuments || isParsing || isAsking}
           style={{
             ...styles.input,
-            backgroundColor: content ? '#fff' : '#f8f9fa',
-            cursor: content ? 'text' : 'not-allowed',
+            backgroundColor: hasDocuments ? '#fff' : '#f8f9fa',
+            cursor: hasDocuments ? 'text' : 'not-allowed',
           }}
           aria-label="Question input"
           aria-describedby="input-help"
@@ -189,12 +246,13 @@ const MessageInput = () => {
       
       {/* Helpful text */}
       <div id="input-help" style={styles.helpText}>
-        {content ? (
+        {hasDocuments ? (
           <span>
             Press Enter to send • <span data-testid="char-count">{question.length}/500</span> characters
+            {documents.length > 1 && <span> • Analyzing {documents.length} documents together</span>}
           </span>
         ) : (
-          <span>Upload a PDF document to start asking questions</span>
+          <span>Upload a document to start asking questions</span>
         )}
       </div>
       {/* Error state display */}

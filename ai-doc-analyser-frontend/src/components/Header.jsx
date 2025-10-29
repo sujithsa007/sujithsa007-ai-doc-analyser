@@ -7,9 +7,12 @@
  * - Semantic HTML structure
  * - Responsive styling
  * - Accessibility optimized
+ * - Export and template action buttons
  */
 
 import React from 'react';
+import { useSelector } from 'react-redux';
+import ExportButton from './ExportButton';
 
 /**
  * Header component for the PDF Chat Assistant
@@ -17,24 +20,48 @@ import React from 'react';
  * Renders the main application header with title and description.
  * Uses semantic HTML elements for better accessibility and SEO.
  * 
+ * @param {Object} props - Component props
+ * @param {Function} props.onOpenTemplates - Callback to open templates modal
  * @returns {JSX.Element} Application header
  */
-const Header = React.memo(() => {
+const Header = ({ onOpenTemplates }) => {
+  const { content } = useSelector((state) => state.pdf);
+  const hasDocument = Boolean(content);
+
   return (
     <header style={styles.header} role="banner">
       <div style={styles.container}>
-        <h1 style={styles.title}>
-          <span role="img" aria-label="Document icon">📄</span>
-          {' '}
-          AI Doc Analyser
-        </h1>
-        <p style={styles.subtitle}>
-          Upload any document (PDF, Word, Excel, Images, etc.) and ask questions using AI
-        </p>
+        <div style={styles.headerContent}>
+          <div style={styles.titleSection}>
+            <h1 style={styles.title}>
+              <span role="img" aria-label="Document icon">📄</span>
+              {' '}
+              AI Doc Analyser
+            </h1>
+            <p style={styles.subtitle}>
+              Upload any document (PDF, Word, Excel, Images, etc.) and ask questions using AI
+            </p>
+          </div>
+          
+          {/* Action buttons */}
+          {hasDocument && (
+            <div style={styles.actions}>
+              <button
+                onClick={onOpenTemplates}
+                style={styles.templateButton}
+                aria-label="Show analysis templates"
+              >
+                <span role="img" aria-label="Template">📋</span>
+                Templates
+              </button>
+              <ExportButton />
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );
-});
+};
 
 // Optimized inline styles object to prevent re-creation on each render
 const styles = {
@@ -49,6 +76,15 @@ const styles = {
     maxWidth: '1200px',
     margin: '0 auto',
   },
+  headerContent: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '20px',
+  },
+  titleSection: {
+    flex: 1,
+  },
   title: {
     margin: 0,
     fontSize: '22px',
@@ -61,6 +97,25 @@ const styles = {
     fontSize: '14px',
     color: '#6b7280',
     lineHeight: '1.4',
+  },
+  actions: {
+    display: 'flex',
+    gap: '12px',
+    alignItems: 'center',
+  },
+  templateButton: {
+    padding: '8px 16px',
+    backgroundColor: '#f8f9fa',
+    border: '1px solid #dee2e6',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#495057',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    transition: 'all 0.2s ease',
   },
 };
 
