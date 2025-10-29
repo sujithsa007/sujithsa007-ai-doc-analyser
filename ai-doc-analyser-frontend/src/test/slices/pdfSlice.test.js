@@ -9,10 +9,15 @@ import pdfReducer, {
 
 describe('pdfSlice', () => {
   const initialState = {
+    documents: [],
+    activeDocumentId: null,
     content: '',
     selectedFile: null,
     isParsing: false,
     error: null,
+    documentStats: {},
+    comparisonMode: false,
+    selectedForComparison: [],
   };
 
   it('should return initial state', () => {

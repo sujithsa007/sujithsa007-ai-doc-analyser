@@ -25,10 +25,33 @@ const createMockStore = (initialState = {}) => {
       ui: uiReducer,
     },
     preloadedState: {
-      chat: { messages: [], isAsking: false, question: '', error: null },
-      pdf: { content: '', selectedFile: null, isParsing: false, error: null },
-      ui: { showPreview: false },
-      ...initialState,
+      chat: {
+        messages: [],
+        isAsking: false,
+        question: '',
+        error: null,
+        conversationHistory: [],
+        suggestedFollowUps: [],
+        currentDocumentId: null,
+        conversationStarted: null,
+        ...initialState.chat
+      },
+      pdf: {
+        content: '',
+        selectedFile: null,
+        isParsing: false,
+        error: null,
+        documents: [],
+        activeDocumentId: null,
+        documentStats: {},
+        comparisonMode: false,
+        selectedForComparison: [],
+        ...initialState.pdf
+      },
+      ui: {
+        showPreview: false,
+        ...initialState.ui
+      },
     },
   });
 };
@@ -55,7 +78,7 @@ describe('Sidebar Component', () => {
       </Provider>
     );
 
-    expect(screen.getByText('Choose Document')).toBeInTheDocument();
+    expect(screen.getByText('Choose Documents')).toBeInTheDocument();
   });
 
   it('should show processing state when parsing', () => {
@@ -188,6 +211,6 @@ describe('Sidebar Component', () => {
     expect(sidebar).toHaveAttribute('aria-label', 'Document management');
     
     const fileInput = document.querySelector('input[type="file"]');
-    expect(fileInput).toHaveAttribute('aria-label', 'Document file upload');
+    expect(fileInput).toHaveAttribute('aria-label', 'Document file upload (multiple files supported)');
   });
 });

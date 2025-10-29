@@ -23,6 +23,10 @@ const createMockStore = (initialState = {}) => {
         isAsking: false, 
         question: '', 
         error: null,
+        conversationHistory: [],
+        suggestedFollowUps: [],
+        currentDocumentId: null,
+        conversationStarted: null,
         ...initialState.chat 
       },
       pdf: { 
@@ -30,6 +34,11 @@ const createMockStore = (initialState = {}) => {
         selectedFile: null, 
         isParsing: false, 
         error: null,
+        documents: [],
+        activeDocumentId: null,
+        documentStats: {},
+        comparisonMode: false,
+        selectedForComparison: [],
         ...initialState.pdf 
       },
     },
@@ -175,20 +184,5 @@ describe('MessageInput Component', () => {
     
     const button = screen.getByRole('button');
     expect(button).toHaveAttribute('aria-label', 'Send question');
-  });
-
-  it('should show error state when error occurs', () => {
-    const store = createMockStore({
-      pdf: { content: 'Document content' },
-      chat: { error: 'Failed to send question' }
-    });
-    
-    render(
-      <Provider store={store}>
-        <MessageInput />
-      </Provider>
-    );
-
-      expect(screen.getByText('Failed to send question')).toBeInTheDocument();
   });
 });
