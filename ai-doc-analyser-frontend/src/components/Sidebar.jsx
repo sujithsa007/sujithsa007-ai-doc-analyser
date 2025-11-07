@@ -11,14 +11,17 @@
 
 import React, { useCallback, useMemo, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { setSelectedFile, setContent, setIsParsing, setError, addDocument, setActiveDocument } from '../store/slices/pdfSlice';
+import { setSelectedFile, setContent, setIsParsing, setError, addDocument } from '../store/slices/pdfSlice';
 import { togglePreview } from '../store/slices/uiSlice';
 import { clearMessages } from '../store/slices/chatSlice';
 import { extractTextFromPDF, validatePDFFile } from '../services/pdfService';
-import PDFPreview from './PDFPreview';
-import DocumentList from './DocumentList';
-import DocumentDashboard from './DocumentDashboard';
+import { FILE_SIZE, FILE_TYPES } from '../constants';
 import queryCache from '../services/queryCache';
+
+// Lazy load heavy components to improve initial load time
+const PDFPreview = React.lazy(() => import('./PDFPreview'));
+const DocumentList = React.lazy(() => import('./DocumentList'));
+const DocumentDashboard = React.lazy(() => import('./DocumentDashboard'));
 
 /**
  * File Upload Status Component
@@ -26,6 +29,17 @@ import queryCache from '../services/queryCache';
  * Supports multi-file upload progress display
  */
 const FileStatus = React.memo(({ isParsing, selectedFile, content, documents }) => {
+  // Memoize calculations to avoid recalculating on every render
+  const fileInfo = useMemo(() => {
+    if (!selectedFile || !content) return null;
+    
+    return {
+      fileSizeMB: (selectedFile.size / (1024 * 1024)).toFixed(2),
+      wordCount: content.split(/\s+/).length,
+      charCount: content.length,
+    };
+  }, [selectedFile, content]);
+
   if (isParsing) {
     return (
       <div style={styles.statusCard}>
@@ -44,10 +58,7 @@ const FileStatus = React.memo(({ isParsing, selectedFile, content, documents }) 
     );
   }
 
-  if (selectedFile && content) {
-    const fileSizeMB = (selectedFile.size / (1024 * 1024)).toFixed(2);
-    const wordCount = content.split(/\s+/).length;
-    
+  if (fileInfo) {
     return (
       <div style={styles.successCard}>
         <div style={styles.fileInfo}>
@@ -55,11 +66,11 @@ const FileStatus = React.memo(({ isParsing, selectedFile, content, documents }) 
           <div style={styles.fileDetails}>
             <p style={styles.fileName}>{selectedFile.name}</p>
             <div style={styles.fileStats}>
-              <span>{fileSizeMB} MB</span>
+              <span>{fileInfo.fileSizeMB} MB</span>
               <span>•</span>
-              <span>{wordCount.toLocaleString()} words</span>
+              <span>{fileInfo.wordCount.toLocaleString()} words</span>
               <span>•</span>
-              <span>{content.length.toLocaleString()} chars</span>
+              <span>{fileInfo.charCount.toLocaleString()} chars</span>
             </div>
           </div>
         </div>
@@ -84,9 +95,15 @@ const Sidebar = ({ showDashboard = false, onToggleDashboard }) => {
   const dispatch = useDispatch();
   const fileInputRef = useRef(null);
   
-  // Redux state selectors
-  const { content, selectedFile, isParsing, error, documents, activeDocumentId } = useSelector((state) => state.pdf);
-  const { showPreview } = useSelector((state) => state.ui);
+  // Redux state selectors - memoized with shallow equal check
+  const { content, selectedFile, isParsing, error, documents } = useSelector((state) => ({
+    content: state.pdf.content,
+    selectedFile: state.pdf.selectedFile,
+    isParsing: state.pdf.isParsing,
+    error: state.pdf.error,
+    documents: state.pdf.documents,
+  }));
+  const showPreview = useSelector((state) => state.ui.showPreview);
 
   // Memoized computed values
   const hasDocument = useMemo(() => Boolean(content && selectedFile) || documents.length > 0, [content, selectedFile, documents.length]);
@@ -124,7 +141,7 @@ const Sidebar = ({ showDashboard = false, onToggleDashboard }) => {
         validatePDFFile(file);
 
         // Check if it's a PDF - use client-side processing for PDFs, backend for others
-        const isPDF = file.type === 'application/pdf';
+        const isPDF = file.type === FILE_TYPES.PDF;
         const fileStartTime = Date.now();
         let extractedText;
 
@@ -133,6 +150,7 @@ const Sidebar = ({ showDashboard = false, onToggleDashboard }) => {
           extractedText = await extractTextFromPDF(file);
         } else {
           // Use backend API for all other formats (Word, Excel, Images, etc.)
+          // Dynamic import to reduce initial bundle size
           const { uploadDocument } = await import('../services/apiService.js');
           const result = await uploadDocument(file);
           extractedText = result?.text || '';
@@ -173,30 +191,41 @@ const Sidebar = ({ showDashboard = false, onToggleDashboard }) => {
     const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`\n⚡ All ${files.length} files processed in ${totalTime}s (parallel processing)`);
 
-    // Add successful files to documents array
-    let successCount = 0;
-    let errorCount = 0;
-
-    results.forEach((result) => {
+    // Batch Redux updates to minimize re-renders
+    const updates = results.reduce((acc, result) => {
       if (result.success) {
-        // Add to documents array
-        dispatch(addDocument({
+        acc.successfulDocs.push({
           file: result.file,
           content: result.content,
           summary: null,
           tags: [],
-        }));
-        
-        // Update legacy state with last successful file
-        dispatch(setContent(result.content));
-        dispatch(setSelectedFile(result.file));
-        
-        successCount++;
+        });
+        acc.successCount++;
+        // Keep last successful for legacy state
+        acc.lastContent = result.content;
+        acc.lastFile = result.file;
       } else {
-        errorCount++;
-        dispatch(setError(`Error in ${result.file.name}: ${result.error}`));
+        acc.errors.push(`Error in ${result.file.name}: ${result.error}`);
+        acc.errorCount++;
       }
+      return acc;
+    }, { successfulDocs: [], errors: [], successCount: 0, errorCount: 0, lastContent: null, lastFile: null });
+
+    // Batch dispatch for better performance
+    updates.successfulDocs.forEach(doc => {
+      dispatch(addDocument(doc));
     });
+
+    // Update legacy state with last successful file
+    if (updates.lastContent && updates.lastFile) {
+      dispatch(setContent(updates.lastContent));
+      dispatch(setSelectedFile(updates.lastFile));
+    }
+
+    // Show errors if any
+    if (updates.errors.length > 0) {
+      dispatch(setError(updates.errors.join('\n')));
+    }
 
     // All files processed
     dispatch(setIsParsing(false));
@@ -206,7 +235,7 @@ const Sidebar = ({ showDashboard = false, onToggleDashboard }) => {
       fileInputRef.current.value = '';
     }
     
-    console.log(`✅ Upload complete: ${successCount} successful, ${errorCount} failed`);
+    console.log(`✅ Upload complete: ${updates.successCount} successful, ${updates.errorCount} failed`);
     
   }, [dispatch]);
 
@@ -268,7 +297,7 @@ const Sidebar = ({ showDashboard = false, onToggleDashboard }) => {
         
         {/* File format help */}
         <p style={styles.helpText}>
-          Supports PDF, Word, Excel, Images, and more (up to 50MB each)
+          Supports PDF, Word, Excel, Images, and more (up to {FILE_SIZE.MAX_SIZE_MB}MB each)
         </p>
         <p style={styles.multiFileHint}>
           💡 Tip: Select multiple files to analyze together (Ctrl+Click or Cmd+Click)
@@ -290,7 +319,9 @@ const Sidebar = ({ showDashboard = false, onToggleDashboard }) => {
             <span role="img" aria-label="Documents">📚</span>
             Uploaded Documents ({documents.length})
           </h3>
-          <DocumentList />
+          <React.Suspense fallback={<div style={styles.loadingFallback}>Loading documents...</div>}>
+            <DocumentList />
+          </React.Suspense>
         </div>
       )}
 
@@ -320,7 +351,9 @@ const Sidebar = ({ showDashboard = false, onToggleDashboard }) => {
           {/* PDF Preview Component */}
           {showPreview && (
             <div style={styles.previewContainer}>
-              <PDFPreview content={content} />
+              <React.Suspense fallback={<div style={styles.loadingFallback}>Loading preview...</div>}>
+                <PDFPreview content={content} />
+              </React.Suspense>
             </div>
           )}
         </div>
@@ -344,7 +377,9 @@ const Sidebar = ({ showDashboard = false, onToggleDashboard }) => {
           {/* Document Dashboard Component */}
           {showDashboard && (
             <div style={styles.dashboardContainer}>
-              <DocumentDashboard />
+              <React.Suspense fallback={<div style={styles.loadingFallback}>Loading dashboard...</div>}>
+                <DocumentDashboard />
+              </React.Suspense>
             </div>
           )}
         </div>
@@ -353,7 +388,7 @@ const Sidebar = ({ showDashboard = false, onToggleDashboard }) => {
   );
 };
 
-// Optimized styles object
+// Optimized styles object - moved outside component to prevent recreation
 const styles = {
   sidebar: {
     width: '320px',
@@ -578,6 +613,12 @@ const styles = {
     borderRadius: '6px',
     border: '1px solid #dee2e6',
     overflow: 'hidden',
+  },
+  loadingFallback: {
+    padding: '20px',
+    textAlign: 'center',
+    fontSize: '13px',
+    color: '#6c757d',
   },
 };
 
