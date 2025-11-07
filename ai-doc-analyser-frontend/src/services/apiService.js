@@ -12,11 +12,18 @@
  */
 
 import axios from 'axios';
+import { 
+  API_CONFIG, 
+  API_ENDPOINTS, 
+  ERROR_CODES, 
+  ERROR_MESSAGES,
+  HEADERS 
+} from '../constants';
 
 // API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const REQUEST_TIMEOUT = 120000; // 2 minutes for AI processing
-const HEALTH_CHECK_TIMEOUT = 5000; // 5 seconds for health checks
+const API_BASE_URL = API_CONFIG.BASE_URL;
+const REQUEST_TIMEOUT = API_CONFIG.REQUEST_TIMEOUT;
+const HEALTH_CHECK_TIMEOUT = API_CONFIG.HEALTH_CHECK_TIMEOUT;
 
 /**
  * Optimized Axios Instance
@@ -26,8 +33,8 @@ const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: REQUEST_TIMEOUT,
   headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
+    'Content-Type': HEADERS.CONTENT_TYPE_JSON,
+    'Accept': HEADERS.ACCEPT_JSON,
   },
 });
 
@@ -77,13 +84,13 @@ apiClient.interceptors.response.use(
 export const askQuestion = async (question, content, documents = null) => {
   // Input validation
   if (!question?.trim()) {
-    throw new Error('Question cannot be empty');
+    throw new Error(ERROR_MESSAGES.EMPTY_QUESTION);
   }
   
   const isMultiDoc = documents && Array.isArray(documents) && documents.length > 0;
   
   if (!isMultiDoc && !content?.trim()) {
-    throw new Error('Document content or documents array is required');
+    throw new Error(ERROR_MESSAGES.NO_CONTENT);
   }
 
   // Log request details
@@ -116,11 +123,11 @@ export const askQuestion = async (question, content, documents = null) => {
       requestBody.content = content.trim();
     }
 
-    const response = await apiClient.post('/ask', requestBody);
+    const response = await apiClient.post(API_ENDPOINTS.ASK, requestBody);
     
     // Validate response structure
     if (!response.data?.answer) {
-      throw new Error('Invalid response format from server');
+      throw new Error(ERROR_MESSAGES.INVALID_RESPONSE);
     }
     
     // Log success metrics
@@ -153,19 +160,19 @@ export const askQuestion = async (question, content, documents = null) => {
       
       // Handle specific error codes - preserve full error message from backend
       switch (errorCode) {
-        case 'RATE_LIMIT_EXCEEDED':
-        case 'RATE_LIMIT_ERROR':
+        case ERROR_CODES.RATE_LIMIT_EXCEEDED:
+        case ERROR_CODES.RATE_LIMIT_ERROR:
           console.log('🚫 Rate limit error detected in API service');
           // Preserve the full formatted message from backend
           throw new Error(errorMessage);
         
-        case 'TIMEOUT_ERROR':
-          throw new Error('Request timed out. The document(s) might be too large or the server is busy. Please try again with smaller documents.');
+        case ERROR_CODES.TIMEOUT_ERROR:
+          throw new Error(ERROR_MESSAGES.TIMEOUT);
         
-        case 'AUTH_ERROR':
+        case ERROR_CODES.AUTH_ERROR:
           throw new Error('Authentication failed. The API key might be invalid or expired.');
         
-        case 'PAYLOAD_TOO_LARGE':
+        case ERROR_CODES.PAYLOAD_TOO_LARGE:
           throw new Error('Document(s) too large for processing. Please try with smaller files.');
         
         default:
@@ -175,11 +182,11 @@ export const askQuestion = async (question, content, documents = null) => {
     } else if (error.request) {
       // Request made but no response received
       if (error.code === 'ECONNABORTED') {
-        throw new Error('Request timed out. The AI is taking longer than expected. Please try again.');
+        throw new Error(ERROR_MESSAGES.TIMEOUT);
       } else if (error.code === 'ECONNREFUSED') {
-        throw new Error('Cannot connect to the backend server. Please ensure the server is running on ' + API_BASE_URL);
+        throw new Error(`${ERROR_MESSAGES.CONNECTION_REFUSED} ${API_BASE_URL}`);
       } else {
-        throw new Error('Network error. Please check your internet connection and try again.');
+        throw new Error(ERROR_MESSAGES.NETWORK_ERROR);
       }
       
     } else {
@@ -200,7 +207,7 @@ export const askQuestion = async (question, content, documents = null) => {
  */
 export const checkBackendHealth = async () => {
   try {
-    const response = await apiClient.get('/health', { 
+    const response = await apiClient.get(API_ENDPOINTS.HEALTH, { 
       timeout: HEALTH_CHECK_TIMEOUT 
     });
     
@@ -245,8 +252,8 @@ export const getApiConfig = () => ({
  */
 export const getApiQuota = async () => {
   try {
-    const response = await apiClient.get('/quota', {
-      timeout: 5000 // 5 seconds timeout
+    const response = await apiClient.get(API_ENDPOINTS.QUOTA, {
+      timeout: API_CONFIG.QUOTA_CHECK_TIMEOUT
     });
     
     console.log('📊 API Quota Status:', response.data.quota);
@@ -304,7 +311,7 @@ export const testApiConnection = async () => {
  */
 export const uploadDocument = async (file) => {
   if (!file) {
-    throw new Error('No file provided for upload');
+    throw new Error(ERROR_MESSAGES.NO_FILE);
   }
 
   console.log('📤 Uploading document:', {
@@ -317,15 +324,15 @@ export const uploadDocument = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await apiClient.post('/upload', formData, {
+    const response = await apiClient.post(API_ENDPOINTS.UPLOAD, formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        'Content-Type': HEADERS.CONTENT_TYPE_FORM,
       },
-      timeout: 300000, // 5 minutes for large files and OCR processing
+      timeout: API_CONFIG.UPLOAD_TIMEOUT,
     });
 
     if (!response.data?.success) {
-      throw new Error('Upload failed - invalid response from server');
+      throw new Error(ERROR_MESSAGES.UPLOAD_FAILED);
     }
 
     console.log('✅ Document uploaded successfully:', response.data.metadata);
@@ -343,9 +350,9 @@ export const uploadDocument = async (file) => {
       const errorMessage = data?.error || `Upload failed (${status})`;
       throw new Error(errorMessage);
     } else if (error.request) {
-      throw new Error('Cannot connect to server. Please ensure the backend is running.');
+      throw new Error(ERROR_MESSAGES.SERVER_UNAVAILABLE);
     } else {
-      throw new Error(error.message || 'Failed to upload document');
+      throw new Error(error.message || ERROR_MESSAGES.PROCESSING_ERROR);
     }
   }
 };

@@ -8,6 +8,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { setActiveTemplate } from '../store/slices/analysisSlice';
 import { addMessage, setIsAsking } from '../store/slices/chatSlice';
 import { askQuestion } from '../services/apiService';
+import { ANIMATION, ERROR_MESSAGES, DEFAULTS } from '../constants';
 import './TemplateSelector.css';
 
 const TemplateSelector = () => {
@@ -15,9 +16,9 @@ const TemplateSelector = () => {
   const { templates, customTemplates, activeTemplate } = useSelector((state) => state.analysis);
   const { content } = useSelector((state) => state.pdf);
   const [isRunning, setIsRunning] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [progress, setProgress] = useState(DEFAULTS.INITIAL_PROGRESS);
+  const [selectedCategory, setSelectedCategory] = useState(DEFAULTS.DEFAULT_CATEGORY);
+  const [searchQuery, setSearchQuery] = useState(DEFAULTS.DEFAULT_SEARCH_QUERY);
 
   const allTemplates = [
     ...Object.entries(templates).map(([id, template]) => ({ id, ...template, type: 'built-in' })),
@@ -42,12 +43,12 @@ const TemplateSelector = () => {
 
   const handleRunTemplate = async (template) => {
     if (!content) {
-      alert('Please upload a document first');
+      alert(ERROR_MESSAGES.NO_DOCUMENT);
       return;
     }
 
     if (!template.questions || template.questions.length === 0) {
-      alert('This template has no questions');
+      alert(ERROR_MESSAGES.NO_QUESTIONS);
       return;
     }
 
@@ -94,12 +95,12 @@ const TemplateSelector = () => {
 
       // Small delay between questions to avoid rate limiting
       if (i < totalQuestions - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, ANIMATION.DELAY_BETWEEN_QUESTIONS));
       }
     }
 
     setIsRunning(false);
-    setProgress(0);
+    setProgress(DEFAULTS.INITIAL_PROGRESS);
   };
 
   return (

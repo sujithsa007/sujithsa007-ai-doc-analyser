@@ -1,9 +1,10 @@
 import { createSlice } from '@reduxjs/toolkit';
+import { UI_LIMITS, DEFAULTS } from '../../constants';
 
 const initialState = {
   documents: [], // Array of {id, file, content, metadata, summary, uploadedAt}
   activeDocumentId: null, // Currently selected document
-  content: '', // Content of active document (for backward compatibility)
+  content: DEFAULTS.EMPTY_CONTENT, // Content of active document (for backward compatibility)
   selectedFile: null, // Active file (for backward compatibility)
   isParsing: false,
   error: null,
@@ -85,7 +86,7 @@ const pdfSlice = createSlice({
           state.selectedFile = newActive.file;
         } else {
           state.activeDocumentId = null;
-          state.content = '';
+          state.content = DEFAULTS.EMPTY_CONTENT;
           state.selectedFile = null;
         }
       }
@@ -125,8 +126,8 @@ const pdfSlice = createSlice({
       if (index >= 0) {
         state.selectedForComparison.splice(index, 1);
       } else {
-        // Limit to 4 documents for comparison
-        if (state.selectedForComparison.length < 4) {
+        // Limit to max documents for comparison
+        if (state.selectedForComparison.length < UI_LIMITS.MAX_DOCUMENTS) {
           state.selectedForComparison.push(docId);
         }
       }
@@ -135,7 +136,7 @@ const pdfSlice = createSlice({
     clearAllDocuments: (state) => {
       state.documents = [];
       state.activeDocumentId = null;
-      state.content = '';
+      state.content = DEFAULTS.EMPTY_CONTENT;
       state.selectedFile = null;
       state.documentStats = {};
       state.selectedForComparison = [];
