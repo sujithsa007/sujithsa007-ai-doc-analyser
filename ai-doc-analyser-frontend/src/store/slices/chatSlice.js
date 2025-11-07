@@ -1,8 +1,9 @@
 import { createSlice } from '@reduxjs/toolkit';
+import { MESSAGE_TYPES, MESSAGE_ROLES, DEFAULTS } from '../../constants';
 
 const initialState = {
   messages: [],
-  question: '',
+  question: DEFAULTS.EMPTY_CONTENT,
   isAsking: false,
   error: null,
   conversationHistory: [], // Full conversation context for AI
@@ -25,7 +26,7 @@ const chatSlice = createSlice({
       
       // Add to conversation history for AI context
       state.conversationHistory.push({
-        role: action.payload.type === 'user' ? 'user' : 'assistant',
+        role: action.payload.type === MESSAGE_TYPES.USER ? MESSAGE_ROLES.USER : MESSAGE_ROLES.ASSISTANT,
         content: action.payload.content,
       });
       
@@ -38,7 +39,7 @@ const chatSlice = createSlice({
       state.question = action.payload;
     },
     clearQuestion: (state) => {
-      state.question = '';
+      state.question = DEFAULTS.EMPTY_CONTENT;
     },
     setIsAsking: (state, action) => {
       state.isAsking = action.payload;

@@ -10,11 +10,12 @@
  * - Accessibility compliance
  */
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { setQuestion, clearQuestion, addMessage, setIsAsking, setError } from '../store/slices/chatSlice';
 import { askQuestion } from '../services/apiService';
 import queryCache from '../services/queryCache';
+import AutocompleteSuggestions from './AutocompleteSuggestions';
 
 /**
  * MessageInput Component
@@ -26,6 +27,9 @@ import queryCache from '../services/queryCache';
  */
 const MessageInput = () => {
   const dispatch = useDispatch();
+  
+  // Local state for autocomplete
+  const [showSuggestions, setShowSuggestions] = useState(false);
   
   // Redux state selectors
   const { question, isAsking, error } = useSelector((state) => state.chat);
@@ -216,32 +220,64 @@ const MessageInput = () => {
 
   /**
    * Handles input value changes
-   * Dispatches to Redux store with debouncing consideration
+   * Dispatches to Redux store and shows/hides suggestions
    */
   const handleInputChange = useCallback((e) => {
-    dispatch(setQuestion(e.target.value));
+    const value = e.target.value;
+    dispatch(setQuestion(value));
+    
+    // Show suggestions when user types (min 2 characters)
+    setShowSuggestions(value.trim().length >= 2);
   }, [dispatch]);
+
+  /**
+   * Handle suggestion selection from autocomplete
+   */
+  const handleSuggestionSelect = useCallback((suggestion) => {
+    dispatch(setQuestion(suggestion));
+    setShowSuggestions(false);
+  }, [dispatch]);
+
+  /**
+   * Close suggestions dropdown
+   */
+  const handleCloseSuggestions = useCallback(() => {
+    setShowSuggestions(false);
+  }, []);
 
   return (
     <div style={styles.container} role="region" aria-label="Message input">
-      <div style={styles.inputGroup}>
-        {/* Main input field */}
-        <input
-          type="text"
-          placeholder={placeholder}
-          value={question}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          disabled={!hasDocuments || isParsing || isAsking}
-          style={{
-            ...styles.input,
-            backgroundColor: hasDocuments ? '#fff' : '#f8f9fa',
-            cursor: hasDocuments ? 'text' : 'not-allowed',
-          }}
-          aria-label="Question input"
-          aria-describedby="input-help"
-          maxLength={500} // Reasonable limit for questions
-        />
+      <div style={styles.inputWrapper}>
+        {/* Autocomplete Suggestions */}
+        {showSuggestions && hasDocuments && !isAsking && (
+          <AutocompleteSuggestions
+            query={question}
+            onSelect={handleSuggestionSelect}
+            onClose={handleCloseSuggestions}
+          />
+        )}
+        
+        <div style={styles.inputGroup}>
+          {/* Main input field */}
+          <input
+            type="text"
+            placeholder={placeholder}
+            value={question}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            disabled={!hasDocuments || isParsing || isAsking}
+            style={{
+              ...styles.input,
+              backgroundColor: hasDocuments ? '#fff' : '#f8f9fa',
+              cursor: hasDocuments ? 'text' : 'not-allowed',
+            }}
+            aria-label="Question input"
+            aria-describedby="input-help"
+            aria-autocomplete="list"
+            aria-controls="autocomplete-suggestions"
+            aria-expanded={showSuggestions}
+            maxLength={500} // Reasonable limit for questions
+          />
         
         {/* Send button */}
         <button 
@@ -263,18 +299,20 @@ const MessageInput = () => {
             <span>Send</span>
           )}
         </button>
-      </div>
-      
-      {/* Helpful text */}
-      <div id="input-help" style={styles.helpText}>
-        {hasDocuments ? (
-          <span>
-            Press Enter to send • <span data-testid="char-count">{question.length}/500</span> characters
-            {documents.length > 1 && <span> • Analyzing {documents.length} documents together</span>}
-          </span>
-        ) : (
-          <span>Upload a document to start asking questions</span>
-        )}
+        </div>
+        
+        {/* Helpful text */}
+        <div id="input-help" style={styles.helpText}>
+          {hasDocuments ? (
+            <span>
+              Press Enter to send • <span data-testid="char-count">{question.length}/500</span> characters
+              {documents.length > 1 && <span> • Analyzing {documents.length} documents together</span>}
+              {showSuggestions && <span> • 💡 Suggestions available</span>}
+            </span>
+          ) : (
+            <span>Upload a document to start asking questions</span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -287,6 +325,9 @@ const styles = {
     backgroundColor: '#fff',
     borderTop: '1px solid #e1e5e9',
     boxShadow: '0 -2px 8px rgba(0,0,0,0.04)',
+  },
+  inputWrapper: {
+    position: 'relative',
   },
   inputGroup: {
     display: 'flex',

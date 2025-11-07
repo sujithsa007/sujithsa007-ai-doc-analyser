@@ -12,7 +12,25 @@ import { apiClient } from './apiService';
  * @param {string} fileName - Name of the file
  * @returns {Promise<Object>} Summary with key points, entities, actions
  */
-export const generateSummary = async (content, documentType = 'general', fileName = 'Untitled') => {
+import { askQuestion } from './apiService';
+import { 
+  TEXT_ANALYSIS, 
+  COMMON_WORDS, 
+  SENTIMENT_KEYWORDS, 
+  SENTIMENT_VALUES,
+  DEFAULTS,
+  VALIDATION 
+} from '../constants';
+
+/**
+ * Document Analysis Service
+ * Provides intelligent analysis capabilities for uploaded documents
+ */
+
+/**
+ * Generate AI-powered summary for document
+ */
+export const generateSummary = async (content, documentType = DEFAULTS.DOCUMENT_TYPE, fileName = DEFAULTS.FILE_NAME) => {
   try {
     const response = await apiClient.post('/analyze/summary', {
       content,
@@ -36,7 +54,7 @@ const generateClientSideSummary = (content) => {
   const words = content.split(/\s+/);
   const wordCount = words.length;
   const sentenceCount = content.split(/[.!?]+/).filter(s => s.trim()).length;
-  const readingTime = Math.ceil(wordCount / 200); // 200 words per minute
+  const readingTime = Math.ceil(wordCount / TEXT_ANALYSIS.WORDS_PER_MINUTE);
   
   // Extract first few sentences as summary
   const sentences = content.match(/[^.!?]+[.!?]+/g) || [];
@@ -90,7 +108,7 @@ const generateClientSideComparison = (documents) => {
   
   // Find common words across all documents
   const allWords = documents.map(doc => 
-    new Set(doc.content.toLowerCase().split(/\W+/).filter(w => w.length > 3))
+    new Set(doc.content.toLowerCase().split(/\W+/).filter(w => w.length > VALIDATION.MIN_WORD_LENGTH_FOR_ANALYSIS))
   );
   
   const commonWords = allWords.reduce((common, words) => {
@@ -113,7 +131,7 @@ const generateClientSideComparison = (documents) => {
  * @param {string} fileName - Name of the file
  * @returns {Promise<Object>} Insights object
  */
-export const extractInsights = async (content, fileName = 'Untitled') => {
+export const extractInsights = async (content, fileName = DEFAULTS.FILE_NAME) => {
   try {
     const response = await apiClient.post('/analyze/insights', {
       content,
@@ -137,20 +155,20 @@ const generateClientSideInsights = (content) => {
   const sentences = content.split(/[.!?]+/).filter(s => s.trim());
   
   // Simple sentiment based on positive/negative words
-  const positiveWords = ['good', 'excellent', 'great', 'positive', 'success', 'beneficial'];
-  const negativeWords = ['bad', 'poor', 'negative', 'failure', 'problem', 'issue'];
+  const positiveWords = SENTIMENT_KEYWORDS.POSITIVE;
+  const negativeWords = SENTIMENT_KEYWORDS.NEGATIVE;
   
   const lowerContent = content.toLowerCase();
   const positiveCount = positiveWords.filter(w => lowerContent.includes(w)).length;
   const negativeCount = negativeWords.filter(w => lowerContent.includes(w)).length;
   
-  let sentiment = 'neutral';
-  if (positiveCount > negativeCount + 2) sentiment = 'positive';
-  if (negativeCount > positiveCount + 2) sentiment = 'negative';
+  let sentiment = SENTIMENT_VALUES.NEUTRAL;
+  if (positiveCount > negativeCount + TEXT_ANALYSIS.SENTIMENT_THRESHOLD) sentiment = SENTIMENT_VALUES.POSITIVE;
+  if (negativeCount > positiveCount + TEXT_ANALYSIS.SENTIMENT_THRESHOLD) sentiment = SENTIMENT_VALUES.NEGATIVE;
   
   // Calculate readability (Flesch Reading Ease approximation)
   const avgWordsPerSentence = words.length / sentences.length;
-  const avgSyllablesPerWord = 1.5; // Simplified
+  const avgSyllablesPerWord = TEXT_ANALYSIS.AVG_SYLLABLES_PER_WORD;
   const readability = 206.835 - 1.015 * avgWordsPerSentence - 84.6 * avgSyllablesPerWord;
   
   let readabilityLevel = 'Medium';
