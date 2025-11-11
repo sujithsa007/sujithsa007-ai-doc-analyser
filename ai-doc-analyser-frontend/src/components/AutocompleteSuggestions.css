@@ -1,0 +1,138 @@
+/**
+ * AutocompleteSuggestions Component Styles
+ * 
+ * Enhanced styling for the intelligent autocomplete component
+ * with smooth animations and modern design
+ */
+
+/* Keyframe animations */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Highlight matched text */
+.autocomplete-suggestions mark {
+  background-color: #ffd93d;
+  color: #1a1a1a;
+  font-weight: 600;
+  padding: 2px 4px;
+  border-radius: 3px;
+  animation: pulse 1.5s ease-in-out;
+}
+
+/* Scrollbar styling for suggestion list */
+.autocomplete-suggestions ul::-webkit-scrollbar {
+  width: 8px;
+}
+
+.autocomplete-suggestions ul::-webkit-scrollbar-track {
+  background: #f1f3f5;
+  border-radius: 4px;
+}
+
+.autocomplete-suggestions ul::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 4px;
+}
+
+.autocomplete-suggestions ul::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+/* Hover effects for close button */
+.autocomplete-close-button:hover {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  transform: scale(1.1);
+}
+
+.autocomplete-close-button:active {
+  transform: scale(0.95);
+}
+
+/* Item hover animation */
+.autocomplete-item {
+  position: relative;
+  overflow: hidden;
+}
+
+.autocomplete-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+  transition: left 0.5s;
+}
+
+.autocomplete-item:hover::before {
+  left: 100%;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .autocomplete-suggestions {
+    max-height: 280px !important;
+  }
+  
+  .autocomplete-suggestions mark {
+    padding: 1px 2px;
+  }
+}
+
+/* Loading state */
+.autocomplete-loading {
+  text-align: center;
+  padding: 20px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.autocomplete-loading::after {
+  content: '...';
+  animation: dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes dots {
+  0%, 20% { content: '.'; }
+  40% { content: '..'; }
+  60%, 100% { content: '...'; }
+}
+
+/* Empty state */
+.autocomplete-empty {
+  text-align: center;
+  padding: 20px;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+/* Context badge */
+.autocomplete-context-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-left: 8px;
+}

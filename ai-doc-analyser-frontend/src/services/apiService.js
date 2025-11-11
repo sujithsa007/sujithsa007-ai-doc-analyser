@@ -26,6 +26,15 @@ const REQUEST_TIMEOUT = API_CONFIG.REQUEST_TIMEOUT;
 const HEALTH_CHECK_TIMEOUT = API_CONFIG.HEALTH_CHECK_TIMEOUT;
 
 /**
+ * Authentication Storage Keys
+ */
+const AUTH_STORAGE_KEYS = {
+  ACCESS_TOKEN: 'accessToken',
+  REFRESH_TOKEN: 'refreshToken',
+  USER: 'user'
+};
+
+/**
  * Optimized Axios Instance
  * Pre-configured with timeouts, interceptors, and error handling
  */
@@ -38,10 +47,17 @@ const apiClient = axios.create({
   },
 });
 
-// Request interceptor for logging and performance tracking
+// Request interceptor for authentication and logging
 apiClient.interceptors.request.use(
   (config) => {
     config.metadata = { startTime: Date.now() };
+    
+    // Add JWT token to requests if available
+    const token = localStorage.getItem(AUTH_STORAGE_KEYS.ACCESS_TOKEN);
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    
     console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`);
     return config;
   },
@@ -51,19 +67,48 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor for logging and error handling
+// Response interceptor for logging, error handling, and token refresh
 apiClient.interceptors.response.use(
   (response) => {
     const duration = Date.now() - response.config.metadata.startTime;
     console.log(`✅ API Response: ${response.status} in ${duration}ms`);
     return response;
   },
-  (error) => {
+  async (error) => {
     const duration = error.config?.metadata 
       ? Date.now() - error.config.metadata.startTime 
       : 0;
     
     console.error(`❌ API Error: ${error.response?.status || 'Network'} in ${duration}ms`);
+    
+    // Handle 401 Unauthorized - try to refresh token
+    if (error.response?.status === 401 && !error.config._retry) {
+      error.config._retry = true;
+      
+      try {
+        const refreshToken = localStorage.getItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN);
+        if (refreshToken) {
+          console.log('🔄 Attempting to refresh access token...');
+          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+          
+          const { accessToken, refreshToken: newRefreshToken } = response.data;
+          
+          // Update stored tokens
+          localStorage.setItem(AUTH_STORAGE_KEYS.ACCESS_TOKEN, accessToken);
+          localStorage.setItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN, newRefreshToken);
+          
+          // Retry original request with new token
+          error.config.headers.Authorization = `Bearer ${accessToken}`;
+          return apiClient(error.config);
+        }
+      } catch (refreshError) {
+        console.error('❌ Token refresh failed:', refreshError);
+        // Clear auth data and redirect to login
+        logout();
+        throw new Error('Session expired. Please login again.');
+      }
+    }
+    
     return Promise.reject(error);
   }
 );
@@ -354,6 +399,118 @@ export const uploadDocument = async (file) => {
     } else {
       throw new Error(error.message || ERROR_MESSAGES.PROCESSING_ERROR);
     }
+  }
+};
+
+/**
+ * Authentication Functions
+ */
+
+/**
+ * Login user
+ * 
+ * @param {string} email - User email
+ * @param {string} password - User password
+ * @returns {Promise<Object>} User data and tokens
+ */
+export const login = async (email, password) => {
+  try {
+    const response = await apiClient.post('/auth/login', { email, password });
+    
+    const { accessToken, refreshToken, user } = response.data;
+    
+    // Store auth data
+    localStorage.setItem(AUTH_STORAGE_KEYS.ACCESS_TOKEN, accessToken);
+    localStorage.setItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
+    localStorage.setItem(AUTH_STORAGE_KEYS.USER, JSON.stringify(user));
+    
+    console.log('✅ Login successful:', user.email);
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Login failed:', error);
+    throw new Error(error.response?.data?.error || 'Login failed');
+  }
+};
+
+/**
+ * Register new user
+ * 
+ * @param {Object} userData - User registration data
+ * @returns {Promise<Object>} User data and tokens
+ */
+export const register = async (userData) => {
+  try {
+    const response = await apiClient.post('/auth/register', userData);
+    
+    const { accessToken, refreshToken, user } = response.data;
+    
+    // Store auth data
+    localStorage.setItem(AUTH_STORAGE_KEYS.ACCESS_TOKEN, accessToken);
+    localStorage.setItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
+    localStorage.setItem(AUTH_STORAGE_KEYS.USER, JSON.stringify(user));
+    
+    console.log('✅ Registration successful:', user.email);
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Registration failed:', error);
+    throw new Error(error.response?.data?.error || 'Registration failed');
+  }
+};
+
+/**
+ * Logout user
+ */
+export const logout = () => {
+  const refreshToken = localStorage.getItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN);
+  
+  // Attempt to logout on server
+  if (refreshToken) {
+    apiClient.post('/auth/logout', { refreshToken }).catch(err => {
+      console.warn('Server logout failed:', err);
+    });
+  }
+  
+  // Clear local storage
+  localStorage.removeItem(AUTH_STORAGE_KEYS.ACCESS_TOKEN);
+  localStorage.removeItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN);
+  localStorage.removeItem(AUTH_STORAGE_KEYS.USER);
+  
+  console.log('✅ Logged out successfully');
+};
+
+/**
+ * Get current user
+ * 
+ * @returns {Object|null} Current user or null if not authenticated
+ */
+export const getCurrentUser = () => {
+  const userStr = localStorage.getItem(AUTH_STORAGE_KEYS.USER);
+  return userStr ? JSON.parse(userStr) : null;
+};
+
+/**
+ * Check if user is authenticated
+ * 
+ * @returns {boolean} True if authenticated
+ */
+export const isAuthenticated = () => {
+  return !!localStorage.getItem(AUTH_STORAGE_KEYS.ACCESS_TOKEN);
+};
+
+/**
+ * Auto-login with default admin credentials (temporary for testing)
+ * This should be removed in production
+ */
+export const autoLoginAdmin = async () => {
+  try {
+    console.log('🔐 Auto-logging in with default admin...');
+    await login('admin@aidoc.local', 'Machten@007');
+    return true;
+  } catch (error) {
+    console.error('❌ Auto-login failed:', error);
+    return false;
   }
 };
 

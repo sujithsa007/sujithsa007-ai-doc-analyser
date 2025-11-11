@@ -11,7 +11,7 @@
  * - Optimized styling for performance
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Provider } from 'react-redux';
 import store from './store';
 import Header from './components/Header';
@@ -20,6 +20,7 @@ import ChatMessages from './components/ChatMessages';
 import MessageInput from './components/MessageInput';
 import DocumentDashboard from './components/DocumentDashboard';
 import TemplateSelector from './components/TemplateSelector';
+import { autoLoginAdmin } from './services/apiService';
 import './App.css';
 
 /**
@@ -32,12 +33,26 @@ import './App.css';
  * - Chat interface for AI interactions
  * - Document Dashboard for analytics
  * - Template Selector modal for batch analysis
+ * - Auto-authentication on startup
  * 
  * @returns {JSX.Element} Complete application layout
  */
 function App() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
+
+  // Auto-login with default admin credentials on startup
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        await autoLoginAdmin();
+        console.log('Auto-authentication successful');
+      } catch (error) {
+        console.error('Auto-authentication failed:', error);
+      }
+    };
+    initAuth();
+  }, []);
 
   return (
     <Provider store={store}>
