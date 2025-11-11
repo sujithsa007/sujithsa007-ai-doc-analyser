@@ -18,10 +18,15 @@ import dotenv from "dotenv";
 import multer from "multer";
 import compression from "compression";
 import axios from "axios";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { ChatGroq } from "@langchain/groq";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import documentProcessor from "./services/documentProcessor.js";
 import quotaTracker from "./services/quotaTracker.js";
+import { authenticate, authenticateJWT, authenticateAPIKey } from "./middleware/auth.js";
+import { authService } from "./services/authService.js";
+import { userService } from "./services/userService.js";
 
 // Load environment variables from .env file
 dotenv.config();
@@ -45,6 +50,34 @@ const upload = multer({
 });
 
 // Middleware Configuration
+// Security middleware - must come first
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+  crossOriginEmbedderPolicy: false, // Allow embedding for API usage
+}));
+
+// Rate limiting - prevent abuse
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: {
+    error: 'Too many requests from this IP, please try again later',
+    code: 'RATE_LIMIT_EXCEEDED'
+  },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+
+// Apply rate limiting to all routes
+app.use(limiter);
+
 app.use(compression()); // Enable gzip compression for faster response transfer
 app.use(cors()); // Enable Cross-Origin Resource Sharing for frontend
 app.use(express.json({ limit: '50mb' })); // Parse JSON payloads up to 50MB
@@ -441,6 +474,265 @@ USER QUESTION: {question}
 ANALYSIS RESPONSE (cite sources with exact quotes/data):`);
 
 /**
+ * ═══════════════════════════════════════════════════════════════════
+ * 🔐 AUTHENTICATION ROUTES
+ * ═══════════════════════════════════════════════════════════════════
+ */
+
+/**
+ * Register New User
+ * POST /auth/register - Create a new user account
+ * Body: { email, username, password }
+ */
+app.post("/auth/register", async (req, res) => {
+  try {
+    const { email, username, password } = req.body;
+
+    // Validate required fields
+    if (!email || !username || !password) {
+      return res.status(400).json({
+        error: 'Email, username, and password are required',
+        code: 'MISSING_FIELDS'
+      });
+    }
+
+    // Register user
+    const result = await authService.register({ email, username, password });
+
+    console.log(`✅ New user registered: ${email}`);
+
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      user: result.user,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      expiresIn: result.expiresIn
+    });
+  } catch (error) {
+    console.error('❌ Registration error:', error.message);
+    res.status(400).json({
+      error: error.message,
+      code: 'REGISTRATION_ERROR'
+    });
+  }
+});
+
+/**
+ * Login User
+ * POST /auth/login - Authenticate and get tokens
+ * Body: { email, password }
+ */
+app.post("/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validate required fields
+    if (!email || !password) {
+      return res.status(400).json({
+        error: 'Email and password are required',
+        code: 'MISSING_CREDENTIALS'
+      });
+    }
+
+    // Login user
+    const result = await authService.login({ email, password });
+
+    console.log(`✅ User logged in: ${email}`);
+
+    res.json({
+      success: true,
+      message: 'Login successful',
+      user: result.user,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      expiresIn: result.expiresIn
+    });
+  } catch (error) {
+    console.error('❌ Login error:', error.message);
+    res.status(401).json({
+      error: error.message,
+      code: 'LOGIN_ERROR'
+    });
+  }
+});
+
+/**
+ * Refresh Access Token
+ * POST /auth/refresh - Get new access token using refresh token
+ * Body: { refreshToken }
+ */
+app.post("/auth/refresh", async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        error: 'Refresh token is required',
+        code: 'MISSING_REFRESH_TOKEN'
+      });
+    }
+
+    // Refresh tokens
+    const tokens = await authService.refresh(refreshToken);
+
+    res.json({
+      success: true,
+      message: 'Token refreshed successfully',
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      expiresIn: tokens.expiresIn
+    });
+  } catch (error) {
+    console.error('❌ Token refresh error:', error.message);
+    res.status(401).json({
+      error: error.message,
+      code: 'REFRESH_ERROR'
+    });
+  }
+});
+
+/**
+ * Logout User
+ * POST /auth/logout - Revoke refresh token
+ * Body: { refreshToken }
+ */
+app.post("/auth/logout", async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    const result = await authService.logout(refreshToken);
+
+    res.json({
+      success: true,
+      message: result.message
+    });
+  } catch (error) {
+    console.error('❌ Logout error:', error.message);
+    res.status(400).json({
+      error: error.message,
+      code: 'LOGOUT_ERROR'
+    });
+  }
+});
+
+/**
+ * Get Current User Profile
+ * GET /auth/me - Get authenticated user's profile
+ * Requires: Authorization header with JWT token
+ */
+app.get("/auth/me", authenticateJWT, (req, res) => {
+  try {
+    const user = userService.getUserById(req.user.userId);
+    
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found',
+        code: 'USER_NOT_FOUND'
+      });
+    }
+
+    res.json({
+      success: true,
+      user: user
+    });
+  } catch (error) {
+    console.error('❌ Get user error:', error.message);
+    res.status(500).json({
+      error: 'Failed to retrieve user profile',
+      code: 'PROFILE_ERROR'
+    });
+  }
+});
+
+/**
+ * Rotate API Key
+ * POST /auth/rotate-api-key - Generate new API key
+ * Requires: Authorization header with JWT token
+ */
+app.post("/auth/rotate-api-key", authenticateJWT, (req, res) => {
+  try {
+    const newAPIKey = userService.rotateAPIKey(req.user.userId);
+
+    if (!newAPIKey) {
+      return res.status(404).json({
+        error: 'Failed to rotate API key',
+        code: 'ROTATION_ERROR'
+      });
+    }
+
+    console.log(`🔑 API key rotated for user: ${req.user.email}`);
+
+    res.json({
+      success: true,
+      message: 'API key rotated successfully',
+      apiKey: newAPIKey
+    });
+  } catch (error) {
+    console.error('❌ API key rotation error:', error.message);
+    res.status(500).json({
+      error: 'Failed to rotate API key',
+      code: 'ROTATION_ERROR'
+    });
+  }
+});
+
+/**
+ * Change Password
+ * POST /auth/change-password - Change user's password
+ * Requires: Authorization header with JWT token
+ * Body: { oldPassword, newPassword }
+ */
+app.post("/auth/change-password", authenticateJWT, async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({
+        error: 'Old password and new password are required',
+        code: 'MISSING_FIELDS'
+      });
+    }
+
+    const result = await authService.changePassword(
+      req.user.userId,
+      oldPassword,
+      newPassword
+    );
+
+    console.log(`🔐 Password changed for user: ${req.user.email}`);
+
+    res.json({
+      success: true,
+      message: result.message
+    });
+  } catch (error) {
+    console.error('❌ Change password error:', error.message);
+    res.status(400).json({
+      error: error.message,
+      code: 'PASSWORD_CHANGE_ERROR'
+    });
+  }
+});
+
+/**
+ * Get Password Requirements
+ * GET /auth/password-requirements - Get password validation rules
+ */
+app.get("/auth/password-requirements", (req, res) => {
+  res.json({
+    success: true,
+    requirements: authService.getPasswordRequirements()
+  });
+});
+
+/**
+ * ═══════════════════════════════════════════════════════════════════
+ * 🌐 PUBLIC ENDPOINTS (No Authentication Required)
+ * ═══════════════════════════════════════════════════════════════════
+ */
+
+/**
  * Health Check Endpoint
  * GET /health - Returns server status for monitoring and load balancers
  */
@@ -492,13 +784,21 @@ app.get("/quota", (req, res) => {
 });
 
 /**
+ * ═══════════════════════════════════════════════════════════════════
+ * 🔒 PROTECTED ENDPOINTS (Authentication Required)
+ * ═══════════════════════════════════════════════════════════════════
+ * All endpoints below require either JWT token or API key authentication
+ */
+
+/**
  * File Upload and Processing Endpoint
  * POST /upload - Upload a document file and extract text content
  * 
+ * Authentication: Required (JWT token or API key)
  * Request: multipart/form-data with 'file' field
  * Response: { success, content, metadata }
  */
-app.post("/upload", upload.single('file'), async (req, res) => {
+app.post("/upload", authenticate, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -544,6 +844,7 @@ app.post("/upload", upload.single('file'), async (req, res) => {
  * Document Analysis Endpoint
  * POST /ask - Analyzes document content and answers questions using AI
  * 
+ * Authentication: Required (JWT token or API key)
  * Request Body:
  * @param {string} question - User's question about the document
  * @param {string} content - Full document text content (up to 50MB)
@@ -552,7 +853,7 @@ app.post("/upload", upload.single('file'), async (req, res) => {
  * @returns {object} { answer: string } - AI-generated analysis response
  * @returns {object} { error: string } - Error message if processing fails
  */
-app.post("/ask", async (req, res) => {
+app.post("/ask", authenticate, async (req, res) => {
   const startRequestTime = Date.now();
   const { question, content, documents, documentType, fileName } = req.body;
 
@@ -825,7 +1126,7 @@ If you're looking for specific information, please ask about a particular docume
  * Response:
  * @returns {object} { summary, keyPoints, entities, actionItems, topics }
  */
-app.post("/analyze/summary", async (req, res) => {
+app.post("/analyze/summary", authenticate, async (req, res) => {
   const { content, documentType, fileName } = req.body;
 
   if (!content?.trim()) {
@@ -909,7 +1210,7 @@ Ensure the response is valid JSON only, with no additional text.`);
  * Response:
  * @returns {object} { commonThemes, differences, recommendations }
  */
-app.post("/analyze/compare", async (req, res) => {
+app.post("/analyze/compare", authenticate, async (req, res) => {
   const { documents } = req.body;
 
   if (!Array.isArray(documents) || documents.length < 2) {
@@ -981,7 +1282,7 @@ Ensure the response is valid JSON only.`);
  * Response:
  * @returns {object} { sentiment, topics, complexity, readability, wordCount }
  */
-app.post("/analyze/insights", async (req, res) => {
+app.post("/analyze/insights", authenticate, async (req, res) => {
   const { content, fileName } = req.body;
 
   if (!content?.trim()) {
@@ -1064,7 +1365,7 @@ Ensure the response is valid JSON only.`);
  * Response:
  * @returns {object} { results: Array of relevant excerpts with scores }
  */
-app.post("/analyze/search", async (req, res) => {
+app.post("/analyze/search", authenticate, async (req, res) => {
   const { query, content, fileName } = req.body;
 
   if (!query?.trim() || !content?.trim()) {
@@ -1150,7 +1451,7 @@ Include the top 5 most relevant excerpts. Ensure the response is valid JSON only
  * Response:
  * @returns {object} { results: Array of {question, answer} pairs }
  */
-app.post("/analyze/template", async (req, res) => {
+app.post("/analyze/template", authenticate, async (req, res) => {
   const { questions, content, documentType, fileName } = req.body;
 
   if (!Array.isArray(questions) || questions.length === 0) {
@@ -1209,7 +1510,7 @@ app.post("/analyze/template", async (req, res) => {
  * Response:
  * @returns {object} { people, organizations, locations, dates, money, emails }
  */
-app.post("/analyze/entities", async (req, res) => {
+app.post("/analyze/entities", authenticate, async (req, res) => {
   const { content, fileName } = req.body;
 
   if (!content?.trim()) {
@@ -1290,7 +1591,7 @@ Ensure the response is valid JSON only with unique values.`);
  * Response:
  * @returns {object} { questions: Array of suggested follow-up questions }
  */
-app.post("/analyze/follow-ups", async (req, res) => {
+app.post("/analyze/follow-ups", authenticate, async (req, res) => {
   const { content, conversationHistory, fileName } = req.body;
 
   if (!content?.trim()) {
@@ -1406,6 +1707,28 @@ if (process.env.NODE_ENV !== 'test') {
     console.log(`   - Code files (sql, json, xml, js, ts, py, java, etc.)`);
     console.log(`   ⭐ Plus: ANY other file type (processed as text)`);
     console.log(`🔑 API Key configured: ${process.env.GROQ_API_KEY ? '✅ Yes' : '❌ Missing'}`);
+    console.log(`\n🔐 Authentication Endpoints:`);
+    console.log(`   POST ${PORT}/auth/register - Register new user`);
+    console.log(`   POST ${PORT}/auth/login - Login user`);
+    console.log(`   POST ${PORT}/auth/refresh - Refresh access token`);
+    console.log(`   POST ${PORT}/auth/logout - Logout user`);
+    console.log(`   GET  ${PORT}/auth/me - Get user profile (protected)`);
+    console.log(`   POST ${PORT}/auth/rotate-api-key - Rotate API key (protected)`);
+    console.log(`\n🛡️  Security Features:`);
+    console.log(`   ✅ JWT authentication with refresh tokens`);
+    console.log(`   ✅ API key support for programmatic access`);
+    console.log(`   ✅ Bcrypt password hashing (12 rounds)`);
+    console.log(`   ✅ Helmet security headers`);
+    console.log(`   ✅ Rate limiting (100 req/15 min per IP)`);
+    console.log(`   ✅ CORS protection`);
+    console.log(`\n⚠️  Important: All endpoints except /health, /formats, and /auth/* require authentication!`);
     console.log("=========================================================\n");
+    
+    // Seed default admin user if no users exist
+    userService.seedDefaultUser(authService).then(() => {
+      console.log('✅ User system initialized\n');
+    }).catch((err) => {
+      console.error('❌ User system initialization error:', err.message);
+    });
   });
 }

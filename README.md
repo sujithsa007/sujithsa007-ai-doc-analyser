@@ -567,7 +567,97 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ## 🚀 Deployment
 
-### 🌐 Production Deployment
+### 📋 Quick Deployment Guide
+
+**� Ready to deploy to production? Follow these guides:**
+
+1. **[DEPLOY_NOW_RENDER.md](./DEPLOY_NOW_RENDER.md)** - ⚡ **5-minute deployment guide for Render.com + Vercel**
+2. **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Complete deployment documentation  
+3. **[DEPLOYMENT_SECURITY.md](./DEPLOYMENT_SECURITY.md)** - Security best practices and JWT configuration
+
+### 🔐 Critical: JWT Authentication Required
+
+**⚠️ Your application now uses JWT authentication!** Before deploying:
+
+1. **Generate JWT Secret:**
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+   ```
+
+2. **Set Environment Variables:**
+   - `JWT_SECRET` - The generated secret (CRITICAL!)
+   - `JWT_ACCESS_EXPIRY` - Token expiry (default: 15m)
+   - `JWT_REFRESH_EXPIRY` - Refresh token expiry (default: 7d)
+   - `CORS_ORIGINS` - Your frontend URL
+
+3. **Change Default Password:**
+   - Default: `admin@aidoc.local` / `Machten@007`
+   - **Change immediately after deployment!**
+
+### �🌐 Deployment Platforms
+
+#### Recommended Platforms:
+- **Backend**: Render.com (Free tier) - See [DEPLOY_NOW_RENDER.md](./DEPLOY_NOW_RENDER.md)
+- **Frontend**: Vercel (Free tier)
+- **Alternative Backend**: Railway, AWS EC2, DigitalOcean
+- **Alternative Frontend**: Netlify, AWS S3 + CloudFront
+
+#### Quick Deploy to Render + Vercel (15 minutes):
+
+**Backend (Render):**
+```bash
+# 1. Push to GitHub
+git push origin main
+
+# 2. Deploy on Render.com
+- Import repository
+- Set root directory: ai-doc-analyser-backend
+- Add environment variables (see DEPLOY_NOW_RENDER.md)
+- Deploy!
+```
+
+**Frontend (Vercel):**
+```bash
+# 1. Update .env.production with Render URL
+echo "VITE_API_URL=https://your-app.onrender.com" > ai-doc-analyser-frontend/.env.production
+
+# 2. Deploy on Vercel
+- Import repository  
+- Set root directory: ai-doc-analyser-frontend
+- Deploy!
+```
+
+### 🔒 Security Checklist Before Production:
+
+- [ ] Generated strong JWT_SECRET (64+ characters)
+- [ ] Added JWT environment variables to hosting platform
+- [ ] Updated CORS_ORIGINS with frontend URL
+- [ ] Changed default admin password
+- [ ] Stored credentials securely (password manager)
+- [ ] Tested authentication endpoints
+- [ ] Verified protected routes require token
+
+### 📊 Production Environment Variables
+
+**Backend (Render/Railway):**
+```bash
+GROQ_API_KEY=<your-groq-key>
+NODE_ENV=production
+JWT_SECRET=<generated-64-char-secret>
+JWT_ACCESS_EXPIRY=15m
+JWT_REFRESH_EXPIRY=7d
+CORS_ORIGINS=https://your-frontend.vercel.app
+```
+
+**Frontend (Vercel):**
+```bash
+VITE_API_URL=https://your-backend.onrender.com
+VITE_ENV=production
+VITE_API_TIMEOUT=120000
+VITE_MAX_PDF_SIZE=50
+```
+
+### 🚀 Production Deployment (Traditional)
 
 #### Backend Deployment
 ```bash
@@ -585,7 +675,7 @@ npm run build
 # Deploy dist/ folder to your hosting service
 ```
 
-### ? Docker Deployment (Optional)
+### 🐳 Docker Deployment (Optional)
 ```dockerfile
 # Dockerfile example for backend
 FROM node:20-alpine
@@ -598,9 +688,18 @@ CMD ["npm", "start"]
 ```
 
 ### 🌍 Hosting Recommendations
-- **Backend**: Railway, Render, AWS EC2, DigitalOcean
-- **Frontend**: Vercel, Netlify, AWS S3 + CloudFront
-- **Database**: Not required - stateless application
+- **Backend**: Render (recommended), Railway, AWS EC2, DigitalOcean
+- **Frontend**: Vercel (recommended), Netlify, AWS S3 + CloudFront
+- **Cost**: Free tier available on all platforms
+
+### 📖 Deployment Documentation
+
+For detailed deployment instructions, see:
+- **[DEPLOY_NOW_RENDER.md](./DEPLOY_NOW_RENDER.md)** - Step-by-step quick deployment
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Complete deployment guide with troubleshooting
+- **[DEPLOYMENT_SECURITY.md](./DEPLOYMENT_SECURITY.md)** - Security configuration and best practices
+- **[AUTHENTICATION.md](./AUTHENTICATION.md)** - Complete authentication system documentation
+- **[PASSWORD_CHANGE_GUIDE.md](./PASSWORD_CHANGE_GUIDE.md)** - Password management guide
 
 ## 📊 Performance Metrics
 

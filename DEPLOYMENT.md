@@ -125,7 +125,28 @@ Complete deployment guide for deploying the AI Document Analyser full-stack appl
    ```bash
    GROQ_API_KEY=<your-groq-api-key-here>
    NODE_ENV=production
+   
+   # 🔐 JWT Authentication (REQUIRED!)
+   JWT_SECRET=<generate-strong-random-64-char-string>
+   JWT_ACCESS_EXPIRY=15m
+   JWT_REFRESH_EXPIRY=7d
+   
+   # CORS Configuration
+   CORS_ORIGINS=https://your-frontend.vercel.app
    ```
+
+   **🔑 Generate JWT_SECRET:**
+   ```bash
+   # Run this locally to generate a strong secret:
+   node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+   ```
+   Copy the output and use it as your `JWT_SECRET` value.
+
+   ⚠️ **CRITICAL SECURITY:**
+   - `JWT_SECRET` must be at least 32 characters (64+ recommended)
+   - Never commit `JWT_SECRET` to Git or share publicly
+   - Update `CORS_ORIGINS` with your actual Vercel frontend URL
+   - Without JWT_SECRET, authentication will NOT work
 
    ⚠️ **IMPORTANT:**
    - **DO NOT** manually set `PORT` - Railway sets this automatically
@@ -141,7 +162,7 @@ Complete deployment guide for deploying the AI Document Analyser full-stack appl
 
 ### Step 3: Verify Backend Deployment
 
-Test the health endpoint:
+Test the health endpoint (public, no auth required):
 ```bash
 curl https://ai-doc-analyser-backend-production.up.railway.app/health
 ```
@@ -151,11 +172,63 @@ Expected response:
 {
   "status": "ok",
   "message": "AI Document Analyser backend is operational",
-  "timestamp": "2025-10-29T12:00:00.000Z",
+  "timestamp": "2025-11-11T12:00:00.000Z",
   "uptime": 123.456,
   "supportedFormats": 34
 }
 ```
+
+### Step 4: Login and Change Default Password
+
+⚠️ **CRITICAL SECURITY STEP** - Do this immediately after deployment!
+
+**Default Admin Credentials:**
+- Email: `admin@aidoc.local`
+- Password: `Machten@007`
+
+**Login to get access token:**
+```bash
+curl -X POST https://ai-doc-analyser-backend-production.up.railway.app/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@aidoc.local",
+    "password": "Machten@007"
+  }'
+```
+
+**Response:**
+```json
+{
+  "accessToken": "eyJhbGc...",
+  "refreshToken": "eyJhbGc...",
+  "user": {
+    "id": "...",
+    "email": "admin@aidoc.local",
+    "username": "admin",
+    "role": "admin"
+  }
+}
+```
+
+**Change password immediately:**
+```bash
+curl -X POST https://ai-doc-analyser-backend-production.up.railway.app/auth/change-password \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <your-access-token>" \
+  -d '{
+    "oldPassword": "Machten@007",
+    "newPassword": "YourNewSecurePassword123!"
+  }'
+```
+
+**Password Requirements:**
+- Minimum 8 characters
+- At least 1 uppercase letter
+- At least 1 lowercase letter
+- At least 1 number
+- Special characters recommended
+
+💡 **Store your new password securely** (password manager recommended)
 
 ---
 
@@ -246,8 +319,17 @@ vercel --prod
 |----------|-------|----------|-------------|
 | `GROQ_API_KEY` | Your Groq API key | ✅ Yes | AI service authentication |
 | `NODE_ENV` | `production` | ✅ Yes | Node environment |
+| `JWT_SECRET` | 64-char random string | ✅ **YES** | JWT token signing (CRITICAL!) |
+| `JWT_ACCESS_EXPIRY` | `15m` | ✅ Yes | Access token lifetime |
+| `JWT_REFRESH_EXPIRY` | `7d` | ✅ Yes | Refresh token lifetime |
+| `CORS_ORIGINS` | Your Vercel frontend URL | ✅ Yes | CORS allowed origins |
 | `PORT` | Auto-set by Railway | ❌ No | Server port (auto) |
 | `HOST` | Auto-defaults to `0.0.0.0` | ❌ No | Server host |
+
+**Generate JWT_SECRET:**
+```bash
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+```
 
 ### Frontend (Vercel)
 
@@ -265,11 +347,27 @@ vercel --prod
 ### Backend Tests
 
 ```bash
-# Health check
+# Health check (public, no auth)
 curl https://ai-doc-analyser-backend-production.up.railway.app/health
 
-# Get supported formats
+# Get supported formats (public, no auth)
 curl https://ai-doc-analyser-backend-production.up.railway.app/formats
+
+# Test authentication
+curl -X POST https://ai-doc-analyser-backend-production.up.railway.app/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@aidoc.local","password":"Machten@007"}'
+
+# Test protected endpoint (should fail without token)
+curl -X POST https://ai-doc-analyser-backend-production.up.railway.app/upload \
+  -H "Content-Type: multipart/form-data"
+# Expected: 401 Unauthorized
+
+# Test with valid token
+curl -X POST https://ai-doc-analyser-backend-production.up.railway.app/upload \
+  -H "Authorization: Bearer <your-access-token>" \
+  -F "file=@test.pdf"
+# Expected: 200 OK with document data
 
 # Test CORS
 curl -H "Origin: https://your-frontend.vercel.app" \
@@ -460,9 +558,13 @@ vercel --prod
 
 - [ ] All tests passing locally (85/85)
 - [ ] Backend `.env` has valid `GROQ_API_KEY`
+- [ ] **Generated strong `JWT_SECRET` (64+ characters)**
+- [ ] **Added JWT environment variables to Railway**
+- [ ] **Updated `CORS_ORIGINS` with Vercel frontend URL**
 - [ ] Frontend `.env.production` has correct Railway URL
 - [ ] All changes committed and pushed to GitHub
 - [ ] No secrets in committed files (use environment variables)
+- [ ] **Read DEPLOYMENT_SECURITY.md for security best practices**
 
 ### After Backend Deployment:
 
@@ -470,6 +572,12 @@ vercel --prod
 - [ ] Formats endpoint returns 34 supported types
 - [ ] CORS headers present in responses
 - [ ] Railway logs show successful startup
+- [ ] **Railway logs show "JWT authentication enabled"**
+- [ ] **Railway logs show "Default admin user created"**
+- [ ] **Login endpoint returns access token**
+- [ ] **Protected endpoints reject requests without token**
+- [ ] **Changed default admin password immediately**
+- [ ] **Stored new admin credentials securely**
 
 ### After Frontend Deployment:
 
@@ -492,6 +600,9 @@ vercel --prod
 - **GitHub Repository:** https://github.com/sujithsa007/sujithsa007-ai-doc-analyser
 - **Backend README:** [ai-doc-analyser-backend/README.md](ai-doc-analyser-backend/README.md)
 - **Frontend README:** [ai-doc-analyser-frontend/README.md](ai-doc-analyser-frontend/README.md)
+- **🔐 Authentication Guide:** [AUTHENTICATION.md](AUTHENTICATION.md)
+- **🔐 Deployment Security:** [DEPLOYMENT_SECURITY.md](DEPLOYMENT_SECURITY.md)
+- **🔑 Password Management:** [PASSWORD_CHANGE_GUIDE.md](PASSWORD_CHANGE_GUIDE.md)
 
 ### Common Commands:
 
@@ -526,6 +637,7 @@ Your AI Document Analyser is now deployed and running in production!
 
 ---
 
-**Last Updated:** October 29, 2025  
-**Deployment Status:** ✅ Active  
+**Last Updated:** November 11, 2025  
+**Deployment Status:** ✅ Active (with JWT Authentication)  
+**Security:** ✅ JWT + Bcrypt + Helmet + Rate Limiting  
 **Maintainer:** Sujith S A (@sujithsa007)
