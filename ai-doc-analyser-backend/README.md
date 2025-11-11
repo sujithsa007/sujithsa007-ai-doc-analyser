@@ -4,7 +4,8 @@
 [![Express](https://img.shields.io/badge/Express-5.1.0-lightgrey.svg)](https://expressjs.com/)
 [![LangChain](https://img.shields.io/badge/LangChain-1.0.1-purple.svg)](https://langchain.com/)
 [![Groq](https://img.shields.io/badge/Groq-LLaMA--3.3--70B-orange.svg)](https://groq.com/)
-[![Tests](https://img.shields.io/badge/Tests-8%2F8%20Passing-brightgreen.svg)](./test/)
+[![Tests](https://img.shields.io/badge/Tests-55%2F55%20Passing-brightgreen.svg)](./test/)
+[![Security](https://img.shields.io/badge/Security-JWT%20%2B%20Bcrypt-blue.svg)](./middleware/auth.js)
 
 > **Ultra-fast AI-powered multi-format document analysis API with 2-5 second response times**
 
@@ -17,11 +18,12 @@ Express.js backend service for AI Document Analyser that provides AI-powered doc
 - 📝 **Text Files** - Markdown, HTML, RTF, plain text, OpenDocument formats
 - 🤖 **Ultra-Fast AI Processing** - 2-5 second response times using Groq's LLaMA-3.3-70B
 - 📊 **Full Document Analysis** - No content truncation, processes entire documents
-- 🛡️ **Production-Ready** - Comprehensive error handling and input validation
-- � **Performance Monitoring** - Request tracking and response time metrics
-- 🔒 **Secure API** - CORS protection, request validation, file upload protection
-- 🧪 **Fully Tested** - 8/8 tests passing with 100% critical path coverage
-- ⚡ **Optimized Performance** - Efficient memory usage and connection pooling
+- � **JWT Authentication** - Token-based authentication with access and refresh tokens
+- 🔑 **API Key Support** - Alternative authentication method for programmatic access
+- �🛡️ **Production-Ready** - Comprehensive error handling and input validation
+- 🔒 **Security Hardened** - Bcrypt password hashing, Helmet headers, rate limiting (100 req/15min)
+- 📈 **Performance Monitoring** - Request tracking and response time metrics
+- 🧪 **Fully Tested** - 55/55 tests passing with 100% coverage (18 API + 37 auth tests)
 
 ## 🏗️ Architecture
 
@@ -43,16 +45,21 @@ Express.js backend service for AI Document Analyser that provides AI-powered doc
 
 ```
 pdf-ai-backend/
-├── app.js                       # Main Express application with multi-format support
+├── app.js                       # Main Express application with authentication
 ├── index.js                     # Server entry point
+├── middleware/
+│   └── auth.js                  # JWT & API key authentication middleware
 ├── services/
+│   ├── authService.js           # User authentication & token management
+│   ├── userService.js           # User CRUD & API key operations
 │   └── documentProcessor.js     # Multi-format document processing service
+├── test/
+│   ├── api.test.js              # API endpoint tests (18 tests)
+│   └── auth.test.js             # Authentication tests (37 tests)
 ├── package.json                 # Dependencies and scripts
 ├── vitest.config.js             # Test configuration
 ├── .env.example                 # Environment template
 ├── .env                         # Environment variables (create from .env.example)
-├── test/
-│   └── api.test.js              # Comprehensive API tests
 └── README.md                    # This file
 ```
 
@@ -282,7 +289,7 @@ npm test -- api.test.js
 ```
 
 ### Test Coverage
-- **8/8 tests passing** ✅
+- **55/55 tests passing** ✅ (18 API tests + 37 authentication tests)
 - **100% critical path coverage**
 - API endpoint validation
 - Error handling scenarios

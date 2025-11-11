@@ -5,8 +5,9 @@
 [![Express](https://img.shields.io/badge/Express-5.1.0-lightgrey.svg)](https://expressjs.com/)
 [![LangChain](https://img.shields.io/badge/LangChain-1.0.1-purple.svg)](https://langchain.com/)
 [![Groq](https://img.shields.io/badge/Groq-LLaMA--3.3--70B-orange.svg)](https://groq.com/)
-[![Tests](https://img.shields.io/badge/Backend%20Tests-18%2F18%20Passing-brightgreen.svg)](./ai-doc-analyser-backend/test/)
+[![Tests](https://img.shields.io/badge/Backend%20Tests-55%2F55%20Passing-brightgreen.svg)](./ai-doc-analyser-backend/test/)
 [![Tests](https://img.shields.io/badge/Frontend%20Tests-67%2F67%20Passing-brightgreen.svg)](./ai-doc-analyser-frontend/src/test/)
+[![Total Tests](https://img.shields.io/badge/Total%20Tests-122%2F122%20Passing-brightgreen.svg)](./)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > **⚡ Ultra-fast AI analysis for 20+ document formats in 2-5 seconds | Full-stack production-ready application**
@@ -247,17 +248,26 @@ npm run test:coverage
 ```
 
 ### 📊 Test Results
-- **Backend Tests**: 18/18 passing ✅ (100% success rate)
-  - API endpoint validation (5 endpoints)
-  - Document processor service tests (6 comprehensive tests)
-  - Error handling scenarios (4 tests)
-  - CORS and security tests (3 tests)
+- **Backend Tests**: 55/55 passing ✅ (100% success rate)
+  - API endpoint validation (18 core tests)
+  - **Authentication & Security Tests (37 comprehensive tests)**
+    - User registration & validation (5 tests)
+    - Login & credentials (4 tests)
+    - JWT token management (3 tests)
+    - Token refresh mechanism (3 tests)
+    - Password change & validation (5 tests)
+    - API key authentication (3 tests)
+    - Protected endpoints - JWT (4 tests)
+    - Protected endpoints - API Key (3 tests)
+    - Public endpoints validation (3 tests)
+    - Security headers & rate limiting (2 tests)
+    - Logout & session management (2 tests)
 - **Frontend Tests**: 67/67 passing ✅ (100% success rate)
   - Component tests (36 tests across 5 components)
   - Redux slice tests (18 tests across 3 state management slices)
   - Service layer tests (14 tests with comprehensive API mocking)
-- **Total Tests**: 85/85 passing ✅ (100% success rate)
-- **Integration Tests**: Full API and component integration verified
+- **Total Tests**: 122/122 passing ✅ (100% success rate)
+- **Integration Tests**: Full API, authentication, and component integration verified
 
 ## 🏗️ Architecture
 
@@ -298,12 +308,16 @@ npm run test:coverage
 | **Express.js** | 5.1.0 | Web application framework | ✅ Optimized |
 | **LangChain** | 1.0.1 | AI orchestration framework | ✅ Full Integration |
 | **Groq API** | Latest | Ultra-fast AI inference (LLaMA-3.3-70B) | ✅ 2-5s responses |
+| **JWT** | 9.0.2 | Token-based authentication | ✅ Secure auth system |
+| **Bcrypt** | 3.0.3 | Password hashing | ✅ 12 salt rounds |
+| **Helmet** | 8.1.0 | Security headers | ✅ Production hardened |
+| **Rate Limiter** | 8.2.1 | API rate limiting | ✅ 100 req/15min |
 | **Multer** | 1.4.5 | File upload middleware | ✅ Multi-format support |
 | **Mammoth** | 1.8.0 | Word document processing (.docx, .doc) | ✅ Text extraction |
 | **XLSX** | 0.18.5 | Excel/CSV processing | ✅ All sheets support |
 | **PDF-Parse** | 1.1.1 | PDF text extraction | ✅ Full content |
 | **Tesseract.js** | 5.1.1 | OCR for images | ✅ 100+ languages |
-| **Vitest** | Latest | Modern testing framework | ✅ 18/18 tests passing |
+| **Vitest** | Latest | Modern testing framework | ✅ 55/55 tests passing |
 | **Supertest** | Latest | HTTP integration testing | ✅ Full API coverage |
 
 ### ⚛️ Frontend Stack  
@@ -322,9 +336,12 @@ npm run test:coverage
 - **⚡ Ultra-Fast Processing**: 2-5 second response times
 - **📊 Full Document Analysis**: No content truncation limits
 - **🏆 Production-Grade**: Comprehensive error handling & validation
-- **📈 Performance Monitoring**: Request timing and metrics
-- **🔒 Security Features**: CORS, input validation, rate limiting ready
-- **🧪 Comprehensive Testing**: 100% critical path coverage
+- **� JWT Authentication**: Token-based security with refresh tokens
+- **🔑 API Key Support**: Alternative authentication method
+- **🛡️ Security Hardening**: Bcrypt password hashing, Helmet headers, rate limiting
+- **�📈 Performance Monitoring**: Request timing and metrics
+- **🔒 Security Features**: CORS, input validation, 100 req/15min rate limit
+- **🧪 Comprehensive Testing**: 55 tests with 100% pass rate
 
 #### Frontend Capabilities  
 - **🎨 Smart State Management**: Redux with normalized data
