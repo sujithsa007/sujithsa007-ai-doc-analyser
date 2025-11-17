@@ -1,366 +1,328 @@
 /**
  * Export Service
- * Handles exporting chat conversations and analysis to various formats
+ * 
+ * Handles multi-format file export (Excel, Word, PDF, PowerPoint, CSV, JSON) from AI responses
  */
 
+import { apiClient } from './apiService';
+
 /**
- * Export conversation to Markdown format
- * @param {Array<Object>} messages - Chat messages
- * @param {Object} metadata - Document and conversation metadata
- * @returns {string} Markdown content
+ * Detect export format from AI response
+ * @param {string} aiResponseText - AI response content
+ * @returns {string} Detected format or 'excel' as default
  */
-export const exportToMarkdown = (messages, metadata = {}) => {
-  const {
-    documentName = 'Document',
-    conversationStarted = new Date().toISOString(),
-    documentMetadata = {},
-  } = metadata;
+export const detectExportFormat = (aiResponseText) => {
+  const text = aiResponseText.toLowerCase();
   
-  let markdown = `# AI Document Analysis Report\n\n`;
-  markdown += `**Document:** ${documentName}\n`;
-  markdown += `**Analysis Date:** ${new Date(conversationStarted).toLocaleString()}\n`;
+  if (text.includes('word') || text.includes('.docx') || text.includes('word document')) return 'word';
+  if (text.includes('pdf') || text.includes('.pdf')) return 'pdf';
+  if (text.includes('powerpoint') || text.includes('.pptx') || text.includes('presentation')) return 'powerpoint';
+  if (text.includes('csv') || text.includes('.csv') || text.includes('comma separated')) return 'csv';
+  if (text.includes('json') || text.includes('.json')) return 'json';
+  if (text.includes('excel') || text.includes('.xlsx') || text.includes('spreadsheet')) return 'excel';
   
-  if (documentMetadata.wordCount) {
-    markdown += `**Word Count:** ${documentMetadata.wordCount}\n`;
-  }
-  if (documentMetadata.pageCount) {
-    markdown += `**Pages:** ${documentMetadata.pageCount}\n`;
-  }
-  
-  markdown += `\n---\n\n`;
-  markdown += `## Conversation\n\n`;
-  
-  messages.forEach((msg, index) => {
-    const timestamp = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : '';
-    
-    if (msg.type === 'user') {
-      markdown += `### Question ${index + 1} ${timestamp ? `(${timestamp})` : ''}\n\n`;
-      markdown += `${msg.content}\n\n`;
-    } else {
-      markdown += `**AI Response:**\n\n`;
-      markdown += `${msg.content}\n\n`;
-      markdown += `---\n\n`;
-    }
-  });
-  
-  markdown += `\n## Summary\n\n`;
-  markdown += `- Total questions asked: ${messages.filter(m => m.type === 'user').length}\n`;
-  markdown += `- Total responses: ${messages.filter(m => m.type === 'ai' || m.type === 'assistant').length}\n`;
-  markdown += `- Generated: ${new Date().toLocaleString()}\n`;
-  
-  return markdown;
+  // Default to excel for merged data
+  return 'excel';
 };
 
 /**
- * Export conversation to HTML format
- * @param {Array<Object>} messages - Chat messages
- * @param {Object} metadata - Document and conversation metadata
- * @returns {string} HTML content
+ * Extract merged data from AI response text
+ * Looks for JSON blocks containing mergedRecords
+ * 
+ * @param {string} aiResponseText - AI response content
+ * @returns {Object|null} Extracted merged data or null
  */
-export const exportToHTML = (messages, metadata = {}) => {
-  const {
-    documentName = 'Document',
-    conversationStarted = new Date().toISOString(),
-    documentMetadata = {},
-  } = metadata;
-  
-  let html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Document Analysis - ${documentName}</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      line-height: 1.6;
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 20px;
-      color: #333;
-      background: #f5f5f5;
-    }
-    .container {
-      background: white;
-      padding: 30px;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    h1 {
-      color: #2563eb;
-      border-bottom: 3px solid #2563eb;
-      padding-bottom: 10px;
-    }
-    .metadata {
-      background: #f0f9ff;
-      padding: 15px;
-      border-radius: 5px;
-      margin: 20px 0;
-      border-left: 4px solid #2563eb;
-    }
-    .metadata p {
-      margin: 5px 0;
-      font-size: 14px;
-    }
-    .conversation {
-      margin-top: 30px;
-    }
-    .message {
-      margin: 25px 0;
-      padding: 20px;
-      border-radius: 8px;
-    }
-    .question {
-      background: #eff6ff;
-      border-left: 4px solid #3b82f6;
-    }
-    .answer {
-      background: #f0fdf4;
-      border-left: 4px solid #22c55e;
-    }
-    .message-header {
-      font-weight: bold;
-      color: #1e40af;
-      margin-bottom: 10px;
-      font-size: 16px;
-    }
-    .message-content {
-      color: #1f2937;
-      white-space: pre-wrap;
-      line-height: 1.8;
-    }
-    .timestamp {
-      color: #6b7280;
-      font-size: 12px;
-      margin-top: 10px;
-    }
-    .summary {
-      background: #fef3c7;
-      padding: 20px;
-      border-radius: 8px;
-      margin-top: 30px;
-      border-left: 4px solid #f59e0b;
-    }
-    .footer {
-      text-align: center;
-      margin-top: 40px;
-      padding-top: 20px;
-      border-top: 1px solid #e5e7eb;
-      color: #6b7280;
-      font-size: 14px;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>📄 AI Document Analysis Report</h1>
+export const extractMergedDataFromResponse = (aiResponseText) => {
+  try {
+    console.log('🔍 Extracting merged data from AI response...');
     
-    <div class="metadata">
-      <p><strong>Document:</strong> ${documentName}</p>
-      <p><strong>Analysis Date:</strong> ${new Date(conversationStarted).toLocaleString()}</p>
-      ${documentMetadata.wordCount ? `<p><strong>Word Count:</strong> ${documentMetadata.wordCount}</p>` : ''}
-      ${documentMetadata.pageCount ? `<p><strong>Pages:</strong> ${documentMetadata.pageCount}</p>` : ''}
-    </div>
+    // Look for JSON blocks in the response (```json ... ```)
+    const jsonBlockRegex = /```json\s*([\s\S]*?)\s*```/g;
+    const matches = [...aiResponseText.matchAll(jsonBlockRegex)];
     
-    <div class="conversation">
-      <h2>Conversation</h2>
-`;
-  
-  let questionNumber = 0;
-  messages.forEach((msg) => {
-    const timestamp = msg.timestamp ? new Date(msg.timestamp).toLocaleString() : '';
-    
-    if (msg.type === 'user') {
-      questionNumber++;
-      html += `
-      <div class="message question">
-        <div class="message-header">❓ Question ${questionNumber}</div>
-        <div class="message-content">${escapeHtml(msg.content)}</div>
-        ${timestamp ? `<div class="timestamp">${timestamp}</div>` : ''}
-      </div>
-`;
-    } else {
-      html += `
-      <div class="message answer">
-        <div class="message-header">🤖 AI Response</div>
-        <div class="message-content">${escapeHtml(msg.content)}</div>
-        ${timestamp ? `<div class="timestamp">${timestamp}</div>` : ''}
-      </div>
-`;
+    for (const match of matches) {
+      try {
+        const jsonData = JSON.parse(match[1]);
+        if (jsonData.mergedRecords && Array.isArray(jsonData.mergedRecords)) {
+          console.log('✅ Found merged data in code block:', {
+            records: jsonData.mergedRecords.length,
+            keyField: jsonData.keyField
+          });
+          return jsonData;
+        }
+      } catch (e) {
+        console.warn('Failed to parse JSON block:', e.message);
+        continue;
+      }
     }
-  });
-  
-  html += `
-    </div>
     
-    <div class="summary">
-      <h3>Summary</h3>
-      <ul>
-        <li>Total questions asked: ${messages.filter(m => m.type === 'user').length}</li>
-        <li>Total responses: ${messages.filter(m => m.type === 'ai' || m.type === 'assistant').length}</li>
-        <li>Generated: ${new Date().toLocaleString()}</li>
-      </ul>
-    </div>
+    // Try to find JSON object without code blocks - use a more robust approach
+    // Find the position of "mergedRecords" and extract the full object
+    const mergedRecordsIndex = aiResponseText.indexOf('"mergedRecords"');
+    if (mergedRecordsIndex !== -1) {
+      // Search backwards to find the opening brace
+      let openBraceIndex = aiResponseText.lastIndexOf('{', mergedRecordsIndex);
+      
+      if (openBraceIndex !== -1) {
+        // Search forwards to find the matching closing brace
+        let braceCount = 1;
+        let closeBraceIndex = openBraceIndex + 1;
+        
+        while (closeBraceIndex < aiResponseText.length && braceCount > 0) {
+          if (aiResponseText[closeBraceIndex] === '{') braceCount++;
+          if (aiResponseText[closeBraceIndex] === '}') braceCount--;
+          closeBraceIndex++;
+        }
+        
+        if (braceCount === 0) {
+          const jsonStr = aiResponseText.substring(openBraceIndex, closeBraceIndex);
+          try {
+            const jsonData = JSON.parse(jsonStr);
+            if (jsonData.mergedRecords && Array.isArray(jsonData.mergedRecords)) {
+              console.log('✅ Found merged data in plain JSON:', {
+                records: jsonData.mergedRecords.length,
+                keyField: jsonData.keyField
+              });
+              return jsonData;
+            }
+          } catch (e) {
+            console.warn('Failed to parse extracted JSON:', e.message);
+          }
+        }
+      }
+    }
     
-    <div class="footer">
-      <p>Generated by AI Document Analyser</p>
-    </div>
-  </div>
-</body>
-</html>`;
-  
-  return html;
-};
-
-/**
- * Export conversation to plain text format
- * @param {Array<Object>} messages - Chat messages
- * @param {Object} metadata - Document and conversation metadata
- * @returns {string} Plain text content
- */
-export const exportToText = (messages, metadata = {}) => {
-  const {
-    documentName = 'Document',
-    conversationStarted = new Date().toISOString(),
-    documentMetadata = {},
-  } = metadata;
-  
-  let text = `AI DOCUMENT ANALYSIS REPORT\n`;
-  text += `${'='.repeat(50)}\n\n`;
-  text += `Document: ${documentName}\n`;
-  text += `Analysis Date: ${new Date(conversationStarted).toLocaleString()}\n`;
-  
-  if (documentMetadata.wordCount) {
-    text += `Word Count: ${documentMetadata.wordCount}\n`;
+    console.warn('⚠️ No merged data found in response');
+    return null;
+  } catch (error) {
+    console.error('❌ Error extracting merged data:', error);
+    return null;
   }
-  if (documentMetadata.pageCount) {
-    text += `Pages: ${documentMetadata.pageCount}\n`;
-  }
+};
+
+/**
+ * Check if AI response contains merged/combined Excel data
+ * 
+ * @param {string} aiResponseText - AI response content
+ * @returns {boolean} True if response contains exportable data
+ */
+export const hasMergedData = (aiResponseText) => {
+  if (!aiResponseText) return false;
   
-  text += `\n${'='.repeat(50)}\n`;
-  text += `CONVERSATION\n`;
-  text += `${'='.repeat(50)}\n\n`;
+  // Check for keywords indicating merged data
+  const keywords = [
+    'mergedRecords',
+    'merged data',
+    'combined data',
+    'consolidat',
+    'merge',
+    'keyField'
+  ];
   
-  let questionNumber = 0;
-  messages.forEach((msg) => {
-    const timestamp = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : '';
+  const lowerText = aiResponseText.toLowerCase();
+  const hasKeywords = keywords.some(keyword => lowerText.includes(keyword.toLowerCase()));
+  
+  // Check for JSON structure
+  const hasJsonStructure = aiResponseText.includes('{') && 
+                           aiResponseText.includes('mergedRecords');
+  
+  return hasKeywords && hasJsonStructure;
+};
+
+/**
+ * Download file in specified format from data
+ * 
+ * @param {Object} data - Data object to export
+ * @param {string} format - Export format (excel, word, pdf, powerpoint, csv, json)
+ * @param {string} filename - Optional filename
+ * @param {Object} options - Format-specific options
+ * @returns {Promise<void>}
+ */
+export const downloadFile = async (data, format = 'excel', filename = null, options = {}) => {
+  try {
+    console.log(`📊 Requesting ${format.toUpperCase()} export...`);
+    console.log('📋 Data:', data);
     
-    if (msg.type === 'user') {
-      questionNumber++;
-      text += `QUESTION ${questionNumber} ${timestamp ? `(${timestamp})` : ''}\n`;
-      text += `${'-'.repeat(40)}\n`;
-      text += `${msg.content}\n\n`;
-    } else {
-      text += `AI RESPONSE:\n`;
-      text += `${'-'.repeat(40)}\n`;
-      text += `${msg.content}\n\n`;
-      text += `${'-'.repeat(40)}\n\n`;
+    // Validate data structure
+    if (!data) {
+      throw new Error('Data is required for export');
     }
-  });
-  
-  text += `\n${'='.repeat(50)}\n`;
-  text += `SUMMARY\n`;
-  text += `${'='.repeat(50)}\n`;
-  text += `Total questions asked: ${messages.filter(m => m.type === 'user').length}\n`;
-  text += `Total responses: ${messages.filter(m => m.type === 'ai' || m.type === 'assistant').length}\n`;
-  text += `Generated: ${new Date().toLocaleString()}\n`;
-  
-  return text;
+    
+    const formatLower = format.toLowerCase();
+    
+    // Set default options based on format
+    const defaultOptions = {
+      title: options.title || 'Exported Data',
+      ...options
+    };
+    
+    const response = await apiClient.post(
+      '/analyze/export',
+      { data, format: formatLower, filename, options: defaultOptions },
+      {
+        responseType: 'blob', // Important for binary data
+      }
+    );
+    
+    // Extract filename from Content-Disposition header if available
+    const contentDisposition = response.headers['content-disposition'];
+    let downloadFilename = filename || `export-data.${getExtension(formatLower)}`;
+    
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+      if (filenameMatch && filenameMatch[1]) {
+        downloadFilename = filenameMatch[1];
+      }
+    }
+    
+    // Get MIME type for format
+    const mimeType = getMimeType(formatLower);
+    
+    // Create blob from response
+    const blob = new Blob([response.data], { type: mimeType });
+    
+    // Create download link
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = downloadFilename;
+    
+    // Trigger download
+    document.body.appendChild(link);
+    link.click();
+    
+    // Cleanup
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    
+    console.log(`✅ ${formatLower.toUpperCase()} file downloaded: ${downloadFilename}`);
+    
+  } catch (error) {
+    console.error(`❌ ${format.toUpperCase()} download failed:`, error);
+    
+    if (error.response?.data) {
+      // Try to read error message from blob
+      try {
+        const text = await error.response.data.text();
+        const errorData = JSON.parse(text);
+        throw new Error(errorData.error || `Failed to download ${format} file`);
+      } catch (e) {
+        throw new Error(`Failed to download ${format} file`);
+      }
+    }
+    
+    throw error;
+  }
 };
 
 /**
- * Download content as file
- * @param {string} content - File content
- * @param {string} filename - Desired filename
- * @param {string} mimeType - MIME type
+ * Get file extension for format
  */
-export const downloadFile = (content, filename, mimeType = 'text/plain') => {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-};
-
-/**
- * Export to PDF (requires external library or service)
- * For now, we'll export as HTML and suggest browser print-to-PDF
- * @param {Array<Object>} messages - Chat messages
- * @param {Object} metadata - Document and conversation metadata
- */
-export const exportToPDF = async (messages, metadata = {}) => {
-  const htmlContent = exportToHTML(messages, metadata);
-  
-  // Open in new window with print dialog
-  const printWindow = window.open('', '_blank');
-  printWindow.document.write(htmlContent);
-  printWindow.document.close();
-  
-  // Trigger print dialog after content loads
-  printWindow.onload = () => {
-    printWindow.print();
+const getExtension = (format) => {
+  const extensions = {
+    excel: 'xlsx',
+    word: 'docx',
+    pdf: 'pdf',
+    powerpoint: 'pptx',
+    csv: 'csv',
+    json: 'json',
+    xlsx: 'xlsx',
+    docx: 'docx',
+    pptx: 'pptx'
   };
-  
-  return true;
+  return extensions[format] || 'xlsx';
 };
 
 /**
- * Export conversation summary with statistics
- * @param {Array<Object>} messages - Chat messages
- * @param {Object} documentInfo - Document information
- * @param {Object} insights - Document insights
- * @returns {Object} Structured export data
+ * Get MIME type for format
  */
-export const exportAnalysisReport = (messages, documentInfo = {}, insights = {}) => {
-  const questions = messages.filter(m => m.type === 'user');
-  const answers = messages.filter(m => m.type === 'ai' || m.type === 'assistant');
-  
-  return {
-    metadata: {
-      documentName: documentInfo.name || 'Unknown',
-      documentSize: documentInfo.size || 0,
-      analysisDate: new Date().toISOString(),
-      totalQuestions: questions.length,
-      totalAnswers: answers.length,
-    },
-    document: documentInfo,
-    insights: insights,
-    conversation: messages.map(msg => ({
-      type: msg.type,
-      content: msg.content,
-      timestamp: msg.timestamp,
-    })),
-    summary: {
-      keyTopics: insights.topics || [],
-      sentiment: insights.sentiment || 'neutral',
-      complexity: insights.complexity || 'medium',
-    },
+const getMimeType = (format) => {
+  const mimeTypes = {
+    excel: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    word: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    pdf: 'application/pdf',
+    powerpoint: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    csv: 'text/csv',
+    json: 'application/json'
   };
+  return mimeTypes[format] || 'application/octet-stream';
 };
 
 /**
- * Escape HTML special characters
+ * Download Excel file from merged data (backward compatibility)
+ * 
+ * @param {Object} mergedData - Merged data object with mergedRecords
+ * @param {string} filename - Optional filename
+ * @returns {Promise<void>}
  */
-const escapeHtml = (text) => {
-  const map = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;',
-  };
-  return text.replace(/[&<>"']/g, m => map[m]);
+export const downloadMergedExcel = async (mergedData, filename = null) => {
+  // Validate merged data structure
+  if (!mergedData || !mergedData.mergedRecords) {
+    throw new Error('Invalid merged data structure - missing mergedRecords');
+  }
+  
+  if (!Array.isArray(mergedData.mergedRecords) || mergedData.mergedRecords.length === 0) {
+    throw new Error('No records to export - mergedRecords is empty');
+  }
+  
+  return downloadFile(mergedData, 'excel', filename);
+};
+
+/**
+ * Download file from AI response text with auto-format detection
+ * Extracts merged data and triggers download in requested format
+ * 
+ * @param {string} aiResponseText - AI response containing merged data
+ * @param {string} filename - Optional filename
+ * @param {string} format - Optional format override (auto-detects if not provided)
+ * @returns {Promise<boolean>} True if download succeeded
+ */
+export const downloadFromResponse = async (aiResponseText, filename = null, format = null) => {
+  try {
+    console.log('🚀 Starting download process...');
+    console.log('📄 AI Response length:', aiResponseText.length, 'characters');
+    console.log('📄 AI Response preview (first 500 chars):', aiResponseText.substring(0, 500));
+    
+    // Auto-detect format if not provided
+    const detectedFormat = format || detectExportFormat(aiResponseText);
+    console.log(`📋 Export format: ${detectedFormat.toUpperCase()}`);
+    
+    const mergedData = extractMergedDataFromResponse(aiResponseText);
+    
+    if (!mergedData) {
+      console.error('❌ No merged data extracted from response');
+      throw new Error('No data found in response to export');
+    }
+    
+    console.log('✅ Data extracted successfully, proceeding to download...');
+    
+    // Extract title from response if available
+    const titleMatch = aiResponseText.match(/(?:title|heading):\s*["']?([^"'\n]+)["']?/i);
+    const title = titleMatch ? titleMatch[1] : 'Exported Data';
+    
+    await downloadFile(mergedData, detectedFormat, filename, { title });
+    return true;
+    
+  } catch (error) {
+    console.error(`❌ Failed to download file from response:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Download Excel from AI response text (backward compatibility)
+ * @deprecated Use downloadFromResponse instead
+ */
+export const downloadExcelFromResponse = async (aiResponseText, filename = null) => {
+  return downloadFromResponse(aiResponseText, filename, 'excel');
 };
 
 export default {
-  exportToMarkdown,
-  exportToHTML,
-  exportToText,
-  exportToPDF,
-  downloadFile,
-  exportAnalysisReport,
+  extractMergedDataFromResponse,
+  hasMergedData,
+  downloadMergedExcel,
+  downloadExcelFromResponse,
 };

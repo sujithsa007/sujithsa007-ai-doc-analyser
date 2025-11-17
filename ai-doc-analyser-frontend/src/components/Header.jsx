@@ -13,7 +13,6 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 import ExportButton from './ExportButton';
-import QuotaDisplay from './QuotaDisplay';
 
 /**
  * Header component for the PDF Chat Assistant
@@ -26,8 +25,8 @@ import QuotaDisplay from './QuotaDisplay';
  * @returns {JSX.Element} Application header
  */
 const Header = ({ onOpenTemplates }) => {
-  const { content } = useSelector((state) => state.pdf);
-  const hasDocument = Boolean(content);
+  const { content, documents } = useSelector((state) => state.pdf);
+  const hasDocument = Boolean(content) || (documents && documents.length > 0);
 
   return (
     <header style={styles.header} role="banner">
@@ -43,9 +42,6 @@ const Header = ({ onOpenTemplates }) => {
               Upload any document (PDF, Word, Excel, Images, etc.) and ask questions using AI
             </p>
           </div>
-          
-          {/* API Quota Display */}
-          <QuotaDisplay />
           
           {/* Action buttons */}
           {hasDocument && (

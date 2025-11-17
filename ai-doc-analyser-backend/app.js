@@ -17,14 +17,16 @@ import cors from "cors";
 import dotenv from "dotenv";
 import multer from "multer";
 import compression from "compression";
-import axios from "axios";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import xlsx from "xlsx";
+import { Document, Packer, Paragraph, TextRun, Table, TableCell, TableRow } from "docx";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 import { ChatGroq } from "@langchain/groq";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import documentProcessor from "./services/documentProcessor.js";
-import quotaTracker from "./services/quotaTracker.js";
-import { authenticate, authenticateJWT, authenticateAPIKey } from "./middleware/auth.js";
+import { authenticate, authenticateJWT } from "./middleware/auth.js";
 import { authService } from "./services/authService.js";
 import { userService } from "./services/userService.js";
 
@@ -83,34 +85,38 @@ app.use(cors()); // Enable Cross-Origin Resource Sharing for frontend
 app.use(express.json({ limit: '50mb' })); // Parse JSON payloads up to 50MB
 app.use(express.urlencoded({ extended: true, limit: '50mb' })); // Parse URL-encoded data
 
-// AI Model Configuration - Using Groq for ultra-fast inference
+// AI Model Configuration - Groq LLaMA
+const AI_MODEL = process.env.AI_MODEL || 'llama-3.3-70b-versatile';
+
 const model = new ChatGroq({
-  model: "llama-3.3-70b-versatile", // Latest LLaMA model - excellent for document analysis
-  temperature: 0, // Deterministic responses for consistent analysis
-  apiKey: process.env.GROQ_API_KEY, // Free API key from console.groq.com
-  maxTokens: 2048, // Limit response length for faster inference
-  streaming: false, // Non-streaming for complete responses
-  maxRetries: 2, // Reduce retries for faster failure detection
-  timeout: 30000, // 30 second timeout to avoid hanging requests
+  model: AI_MODEL,
+  temperature: 0.2,
+  apiKey: process.env.GROQ_API_KEY,
+  maxTokens: 2048, // Reduced to conserve rate limits
+  streaming: false,
+  maxRetries: 1, // Reduce retries to avoid hitting limits
+  timeout: 30000, // Faster timeout
 });
+
+console.log(`🤖 AI Provider: Groq ${AI_MODEL} (FREE & FAST!)`);
 
 /**
  * Smart content truncation to fit within token limits while preserving important information
  * Uses intelligent chunking to keep beginning and end of documents
  */
-function smartTruncate(content, maxChars = 12000) { // Reduced from 15000 for faster processing
+function smartTruncate(content, maxChars = 8000) { // Reduced significantly for rate limit conservation
   if (content.length <= maxChars) {
     return content;
   }
   
   // Keep beginning and end, as they often contain key info (intro and conclusion)
-  const beginChars = Math.floor(maxChars * 0.6); // 60% from beginning
-  const endChars = Math.floor(maxChars * 0.4); // 40% from end
+  const beginChars = Math.floor(maxChars * 0.7); // 70% from beginning (more important)
+  const endChars = Math.floor(maxChars * 0.3); // 30% from end
   
   const beginning = content.substring(0, beginChars);
   const end = content.substring(content.length - endChars);
   
-  return `${beginning}\n\n[... ${(content.length - maxChars).toLocaleString()} characters omitted for performance ...]\n\n${end}`;
+  return `${beginning}\n\n[... ${(content.length - maxChars).toLocaleString()} chars omitted ...]\n\n${end}`;
 }
 
 /**
@@ -363,45 +369,48 @@ DETAILED ANALYSIS RESPONSE:`);
 
 // Enhanced prompt template for multi-document analysis with strict validation
 const multiDocPrompt = ChatPromptTemplate.fromTemplate(`
-You are a CRITICAL document analyst specializing in precise cross-document analysis. Your role is to provide ACCURATE, EVIDENCE-BASED assessments.
+You are a document analyst. Provide ACCURATE, EVIDENCE-BASED assessments.
 
-═══════════════════════════════════════════════════════════════════════
-⚠️  CRITICAL ANALYSIS RULES - FOLLOW STRICTLY ⚠️
-═══════════════════════════════════════════════════════════════════════
+CRITICAL RULES:
+1. EVIDENCE REQUIREMENT - Quote EXACT text. No evidence = UNRELATED
+2. RELATIONSHIP - Shared entities required (names, dates, IDs). Generic similarities don't count
+3. DATA EXTRACTION - Show column headers, extract exact row data, state if not found
+4. EXPORT FORMAT - When user requests export (Word/PDF/PowerPoint/Excel/CSV/JSON):
+   * Mention format EXPLICITLY: "I'll provide as Word" or "formatted for PDF"
+   * Return JSON in \`\`\`json code block:
+       {{
+         "keyField": "field_name",
+         "totalRecords": number,
+         "mergedRecords": [
+           {{
+             "key": "id",
+             "data": {{ "field": "value" }},
+             "sources": ["file.xlsx"],
+             "conflicts": []
+           }}
+         ],
+         "summary": {{
+           "totalUniqueKeys": number,
+           "filesProcessed": number,
+           "conflictsResolved": number
+         }}
+       }}
+     * BEFORE the JSON, mention the export format requested:
+       - If user said "word" → "I'll export this as a Word document (.docx)"
+       - If user said "pdf" → "I'll provide this as a PDF file"
+       - If user said "powerpoint" or "presentation" → "I'll create a PowerPoint presentation (.pptx)"
+       - If user said "csv" → "I'll export this as a CSV file"
+       - If user said "json" → "I'll provide this as a JSON file"
+       - Default (no format specified) → "I'll export this as an Excel file (.xlsx)"
+     * User will see a "Download File" button that auto-detects the format from your response
+     * Explain the merge process clearly before the JSON
 
-0. AUTOMATED SIMILARITY SCAN:
-   - An automated content analysis has already scanned the documents
-   - If the scan shows "NO SIGNIFICANT OVERLAP DETECTED", the documents are LIKELY UNRELATED
-   - You MUST find concrete evidence to override the automated scan results
-   - Low similarity scores (<15%) indicate DIFFERENT content - do NOT claim they are related
-
-1. EVIDENCE REQUIREMENT:
-   - NEVER claim similarity without CONCRETE evidence
-   - Quote EXACT text, data, or values that support your claims
-   - If you cannot find specific matching content, the documents are UNRELATED
-   - File type differences (PDF vs TXT) mean NOTHING - only actual content matters
-
-2. RELATIONSHIP VALIDATION:
-   - Documents uploaded together does NOT mean they are related
-   - Similarity requires: shared entities (names, dates, IDs), overlapping topics, or common data
-   - Different topics/subjects = UNRELATED documents
-   - Generic similarities (e.g., "both are business documents") DO NOT count as related
-   - If automated scan shows low similarity AND you find no shared entities, they are UNRELATED
-
-3. DATA EXTRACTION (for spreadsheets/tables):
-   - When searching for person-specific data across Excel/CSV files:
-     * Identify the EXACT column headers in each document
-     * Search for the person's name/ID in ALL documents
-     * Extract matching row data with column names
-     * If person NOT found in a document, explicitly state: "Person X not found in [filename]"
-   - Present data in clear table format showing which document each value came from
-
-4. COMPARISON STANDARDS:
+5. COMPARISON STANDARDS:
    - List SPECIFIC differences: dates, names, amounts, topics, data points
    - List SPECIFIC similarities: exact matching values, names, references
    - If no meaningful overlap exists, state: "These documents are UNRELATED"
 
-5. CITATION REQUIREMENTS:
+6. CITATION REQUIREMENTS:
    - Every claim MUST cite the source document: [Document 1: filename.pdf]
    - Quote exact text when claiming similarity: "Both mention 'Project Alpha' [Doc 1, Doc 2]"
    - For data: "John Smith's salary: $50,000 [employees.xlsx, row 15] vs $52,000 [payroll.xlsx, row 8]"
@@ -766,24 +775,6 @@ app.get("/formats", (req, res) => {
 });
 
 /**
- * API Quota Status Endpoint
- * GET /quota - Returns local quota tracking statistics
- * Tracks usage locally without making additional API calls
- */
-app.get("/quota", (req, res) => {
-  try {
-    const stats = quotaTracker.getQuotaStats();
-    res.json(stats);
-  } catch (error) {
-    console.error("Error getting quota:", error);
-    res.status(500).json({ 
-      error: "Failed to retrieve quota information",
-      details: error.message 
-    });
-  }
-});
-
-/**
  * ═══════════════════════════════════════════════════════════════════
  * 🔒 PROTECTED ENDPOINTS (Authentication Required)
  * ═══════════════════════════════════════════════════════════════════
@@ -1012,17 +1003,9 @@ If you're looking for specific information, please ask about a particular docume
     const aiDuration = ((aiEndTime - aiStartTime) / 1000).toFixed(2);
     const totalDuration = ((aiEndTime - startRequestTime) / 1000).toFixed(2);
     
-    // Record request for local quota tracking
-    const tokensUsed = quotaTracker.constructor.estimateTokens(formattedPrompt + result.content);
-    quotaTracker.recordRequest(tokensUsed);
-    
-    // Get updated quota stats
-    const quotaStats = quotaTracker.getQuotaStats();
-    
     // Success logging
     console.log(`✅ AI analysis completed in ${aiDuration}s`);
     console.log(`📊 Total request time: ${totalDuration}s`);
-    console.log(`📊 Quota: ${quotaStats.requests.percentageRemaining}% requests remaining, ${quotaStats.tokens.percentageRemaining}% tokens remaining`);
     console.log("📝 Response preview:", result.content.substring(0, 150) + "...\n");
 
     // Return successful analysis
@@ -1033,12 +1016,6 @@ If you're looking for specific information, please ask about a particular docume
         aiResponseTime: aiDuration,
         documentCount: isMultiDoc ? documents.length : 1,
         analysisMode: isMultiDoc ? 'multi-document' : 'single-document'
-      },
-      quota: {
-        requestsRemaining: quotaStats.requests.percentageRemaining,
-        tokensRemaining: quotaStats.tokens.percentageRemaining,
-        resetIn: quotaStats.resetIn,
-        status: quotaStats.status
       }
     });
     
@@ -1080,14 +1057,21 @@ If you're looking for specific information, please ask about a particular docume
     if (isRateLimitError) {
       console.log("🚫 Rate limit error detected, returning 429 response");
       
-      // Record rate limit in quota tracker
-      quotaTracker.recordRateLimit(waitTime, `Rate limit exceeded. Please try again in ${waitTime}`);
+      const providerName = AI_PROVIDER.charAt(0).toUpperCase() + AI_PROVIDER.slice(1);
+      const upgradeUrls = {
+        groq: "https://console.groq.com/settings/billing",
+        gemini: "https://aistudio.google.com/",
+        google: "https://aistudio.google.com/",
+        anthropic: "https://console.anthropic.com/settings/plans",
+        openai: "https://platform.openai.com/account/billing"
+      };
       
       return res.status(429).json({ 
-        error: `🚫 AI Rate Limit Reached\n\nYour free tier AI usage limit has been exceeded for today. The Groq AI service has a daily token limit.\n\n⏰ Please try again in: ${waitTime}\n\n💡 To continue using the service immediately:\n• Upgrade to Groq Dev Tier at: https://console.groq.com/settings/billing\n• Or wait ${waitTime} for the limit to reset\n\nSorry for the inconvenience!`,
+        error: `🚫 AI Rate Limit Reached\n\nYour free tier AI usage limit has been exceeded. The ${providerName} AI service has a rate limit.\n\n⏰ Please try again in: ${waitTime}\n\n💡 To continue:\n• Wait ${waitTime} for the limit to reset\n• Or check your ${providerName} dashboard for upgrade options\n\nSorry for the inconvenience!`,
         code: "RATE_LIMIT_EXCEEDED",
         waitTime: waitTime,
-        upgradeUrl: "https://console.groq.com/settings/billing",
+        provider: AI_PROVIDER,
+        upgradeUrl: upgradeUrls[AI_PROVIDER.toLowerCase()] || upgradeUrls.groq,
         retryAfter: waitTime
       });
     } else if (err.message.includes("timeout") || err.message.includes("Timeout")) {
@@ -1096,8 +1080,9 @@ If you're looking for specific information, please ask about a particular docume
         code: "TIMEOUT_ERROR"
       });
     } else if (err.message.includes("API key") || err.message.includes("authentication")) {
+      const providerName = AI_PROVIDER.charAt(0).toUpperCase() + AI_PROVIDER.slice(1);
       return res.status(401).json({ 
-        error: "Authentication failed - Invalid Groq API key. Get a free key from console.groq.com",
+        error: `Authentication failed - Invalid ${providerName} API key. Please check your configuration.`,
         code: "AUTH_ERROR"
       });
     } else if (err.message.includes("reduce the length") || err.message.includes("too large")) {
@@ -1665,6 +1650,637 @@ Questions should be specific, insightful, and build upon the existing conversati
   }
 });
 
+// ==========================================
+// ADVANCED MULTI-DOCUMENT ANALYSIS ENDPOINTS
+// ==========================================
+
+import * as multiDocAnalysis from './services/multiDocAnalysisService.js';
+
+/**
+ * Resume Screening Endpoint
+ * POST /analyze/screen-resumes - Filter resumes based on job requirements
+ * 
+ * Request Body:
+ * @param {Array} resumes - Array of resume documents [{fileName, content}]
+ * @param {Object} requirements - Job requirements {requiredSkills, preferredSkills, minExperience, jobTitle}
+ * 
+ * Response:
+ * @returns {object} Filtered and ranked candidates with match scores
+ */
+app.post("/analyze/screen-resumes", authenticate, async (req, res) => {
+  const { resumes, requirements } = req.body;
+
+  if (!resumes || !Array.isArray(resumes) || resumes.length === 0) {
+    return res.status(400).json({ 
+      error: "Resumes array is required and must not be empty" 
+    });
+  }
+
+  if (!requirements || !requirements.requiredSkills) {
+    return res.status(400).json({ 
+      error: "Requirements with requiredSkills array is required" 
+    });
+  }
+
+  console.log("\n📋 ===== RESUME SCREENING REQUEST =====");
+  console.log(`📄 Total resumes: ${resumes.length}`);
+  console.log(`🎯 Required skills: ${requirements.requiredSkills.join(', ')}`);
+  console.log(`💼 Position: ${requirements.jobTitle || 'Not specified'}`);
+
+  try {
+    const result = await multiDocAnalysis.screenResumes(resumes, requirements);
+    
+    console.log("✅ Resume screening completed successfully");
+    console.log(`📊 Results: ${result.summary.strongMatches} strong matches, ${result.summary.matches} matches\n`);
+    
+    res.json(result);
+
+  } catch (err) {
+    console.error("❌ Resume screening error:", err.message);
+    res.status(500).json({ 
+      error: "Failed to screen resumes: " + err.message 
+    });
+  }
+});
+
+/**
+ * Excel Data Merging Endpoint
+ * POST /analyze/merge-excel - Merge data from multiple Excel files
+ * 
+ * Request Body:
+ * @param {Array} excelFiles - Array of Excel file data [{fileName, content}]
+ * @param {Object} mergeConfig - Configuration {keyField, fieldsToInclude, conflictResolution}
+ * 
+ * Response:
+ * @returns {object} Merged data with conflict resolution
+ */
+app.post("/analyze/merge-excel", authenticate, async (req, res) => {
+  const { excelFiles, mergeConfig } = req.body;
+
+  if (!excelFiles || !Array.isArray(excelFiles) || excelFiles.length < 2) {
+    return res.status(400).json({ 
+      error: "At least 2 Excel files are required for merging" 
+    });
+  }
+
+  console.log("\n📊 ===== EXCEL MERGE REQUEST =====");
+  console.log(`📄 Files to merge: ${excelFiles.length}`);
+  console.log(`🔑 Key field: ${mergeConfig?.keyField || 'Auto-detect'}`);
+
+  try {
+    const result = await multiDocAnalysis.mergeExcelData(excelFiles, mergeConfig || {});
+    
+    console.log("✅ Excel merge completed successfully\n");
+    
+    res.json(result);
+
+  } catch (err) {
+    console.error("❌ Excel merge error:", err.message);
+    res.status(500).json({ 
+      error: "Failed to merge Excel files: " + err.message 
+    });
+  }
+});
+
+/**
+ * Multi-Document Comparison Endpoint
+ * POST /analyze/compare-multi - Compare multiple documents and identify differences
+ * 
+ * Request Body:
+ * @param {Array} documents - Array of documents [{fileName, content}]
+ * @param {Object} comparisonConfig - Configuration {focusAreas, comparisonType}
+ * 
+ * Response:
+ * @returns {object} Comparison results with common elements, differences, and contradictions
+ */
+app.post("/analyze/compare-multi", authenticate, async (req, res) => {
+  const { documents, comparisonConfig } = req.body;
+
+  if (!documents || !Array.isArray(documents) || documents.length < 2) {
+    return res.status(400).json({ 
+      error: "At least 2 documents are required for comparison" 
+    });
+  }
+
+  console.log("\n🔍 ===== MULTI-DOCUMENT COMPARISON REQUEST =====");
+  console.log(`📄 Documents to compare: ${documents.length}`);
+
+  try {
+    const result = await multiDocAnalysis.compareDocuments(documents, comparisonConfig || {});
+    
+    console.log("✅ Document comparison completed successfully\n");
+    
+    res.json(result);
+
+  } catch (err) {
+    console.error("❌ Document comparison error:", err.message);
+    res.status(500).json({ 
+      error: "Failed to compare documents: " + err.message 
+    });
+  }
+});
+
+/**
+ * Structured Data Extraction Endpoint
+ * POST /analyze/extract-data - Extract specific fields from multiple documents
+ * 
+ * Request Body:
+ * @param {Array} documents - Array of documents [{fileName, content}]
+ * @param {Object} extractionConfig - Configuration {fields, outputFormat}
+ * 
+ * Response:
+ * @returns {object} Extracted structured data from all documents
+ */
+app.post("/analyze/extract-data", authenticate, async (req, res) => {
+  const { documents, extractionConfig } = req.body;
+
+  if (!documents || !Array.isArray(documents) || documents.length === 0) {
+    return res.status(400).json({ 
+      error: "Documents array is required and must not be empty" 
+    });
+  }
+
+  if (!extractionConfig || !extractionConfig.fields) {
+    return res.status(400).json({ 
+      error: "extractionConfig with fields array is required" 
+    });
+  }
+
+  console.log("\n📝 ===== DATA EXTRACTION REQUEST =====");
+  console.log(`📄 Documents to process: ${documents.length}`);
+  console.log(`🔍 Fields to extract: ${extractionConfig.fields.join(', ')}`);
+
+  try {
+    const result = await multiDocAnalysis.extractStructuredData(documents, extractionConfig);
+    
+    console.log("✅ Data extraction completed successfully\n");
+    
+    res.json(result);
+
+  } catch (err) {
+    console.error("❌ Data extraction error:", err.message);
+    res.status(500).json({ 
+      error: "Failed to extract data: " + err.message 
+    });
+  }
+});
+
+/**
+ * Export Merged Excel Data
+ * POST /analyze/export-excel - Create downloadable Excel file from merged data
+ * 
+ * Request Body:
+ * @param {Object} mergedData - Merged data object from merge-excel endpoint
+ * @param {string} filename - Optional filename (defaults to merged-data.xlsx)
+ * 
+ * Response:
+ * @returns {Buffer} Excel file as binary download
+ */
+app.post("/analyze/export-excel", authenticate, async (req, res) => {
+  const { mergedData, filename } = req.body;
+
+  if (!mergedData || !mergedData.mergedRecords) {
+    return res.status(400).json({ 
+      error: "mergedData with mergedRecords is required" 
+    });
+  }
+
+  console.log("\n📊 ===== EXCEL EXPORT REQUEST =====");
+  console.log(`📄 Records to export: ${mergedData.mergedRecords?.length || 0}`);
+
+  try {
+    // Create workbook
+    const workbook = xlsx.utils.book_new();
+    
+    // Prepare data for worksheet
+    const records = mergedData.mergedRecords || [];
+    
+    if (records.length === 0) {
+      return res.status(400).json({ 
+        error: "No records to export" 
+      });
+    }
+    
+    // Extract all unique field names from all records
+    const allFields = new Set();
+    records.forEach(record => {
+      if (record.data) {
+        Object.keys(record.data).forEach(field => allFields.add(field));
+      }
+    });
+    
+    // Convert Set to Array and create headers
+    const headers = [mergedData.keyField || 'Key', ...Array.from(allFields), 'Sources', 'Conflicts'];
+    
+    // Build rows
+    const rows = records.map(record => {
+      const row = [record.key || ''];
+      
+      // Add data fields
+      Array.from(allFields).forEach(field => {
+        row.push(record.data?.[field] || '');
+      });
+      
+      // Add sources and conflicts
+      row.push((record.sources || []).join(', '));
+      row.push((record.conflicts || []).map(c => `${c.field}: ${c.values.join(' vs ')}`).join('; '));
+      
+      return row;
+    });
+    
+    // Create worksheet with headers and data
+    const worksheetData = [headers, ...rows];
+    const worksheet = xlsx.utils.aoa_to_sheet(worksheetData);
+    
+    // Auto-size columns
+    const maxWidths = headers.map((_, colIndex) => {
+      const values = worksheetData.map(row => String(row[colIndex] || ''));
+      return Math.max(...values.map(v => v.length), 10);
+    });
+    
+    worksheet['!cols'] = maxWidths.map(width => ({ wch: Math.min(width, 50) }));
+    
+    // Add summary sheet
+    const summaryData = [
+      ['Merge Summary'],
+      [''],
+      ['Key Field', mergedData.keyField || 'Auto-detected'],
+      ['Total Files Processed', mergedData.summary?.filesProcessed || 0],
+      ['Total Unique Keys', mergedData.summary?.totalUniqueKeys || records.length],
+      ['Total Records', mergedData.totalRecords || records.length],
+      ['Conflicts Resolved', mergedData.summary?.conflictsResolved || 0],
+      ['Export Date', new Date().toISOString()],
+    ];
+    
+    const summarySheet = xlsx.utils.aoa_to_sheet(summaryData);
+    summarySheet['!cols'] = [{ wch: 25 }, { wch: 30 }];
+    
+    // Add sheets to workbook
+    xlsx.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+    xlsx.utils.book_append_sheet(workbook, worksheet, 'Merged Data');
+    
+    // Generate Excel file buffer
+    const excelBuffer = xlsx.write(workbook, { 
+      type: 'buffer', 
+      bookType: 'xlsx',
+      compression: true 
+    });
+    
+    const exportFilename = filename || `merged-data-${Date.now()}.xlsx`;
+    
+    console.log(`✅ Excel file created: ${exportFilename} (${excelBuffer.length} bytes)\n`);
+    
+    // Send as downloadable file
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${exportFilename}"`);
+    res.setHeader('Content-Length', excelBuffer.length);
+    
+    res.send(excelBuffer);
+
+  } catch (err) {
+    console.error("❌ Excel export error:", err.message);
+    res.status(500).json({ 
+      error: "Failed to create Excel file: " + err.message 
+    });
+  }
+});
+
+/**
+ * Multi-Format Export Endpoint
+ * POST /analyze/export - Export data in multiple formats (Excel, Word, PDF, PowerPoint, CSV, JSON)
+ * 
+ * Request Body:
+ * @param {Object} data - Data object to export (supports mergedRecords or any structured data)
+ * @param {string} format - Export format: 'excel', 'word', 'pdf', 'powerpoint', 'csv', 'json'
+ * @param {string} filename - Optional filename
+ * @param {Object} options - Format-specific options
+ * 
+ * Response:
+ * @returns {Buffer} File as binary download with appropriate MIME type
+ */
+app.post("/analyze/export", authenticate, async (req, res) => {
+  const { data, format = 'excel', filename, options = {} } = req.body;
+
+  if (!data) {
+    return res.status(400).json({ 
+      error: "Data is required for export" 
+    });
+  }
+
+  const formatLower = format.toLowerCase();
+  console.log(`\n📊 ===== MULTI-FORMAT EXPORT REQUEST =====`);
+  console.log(`📄 Format: ${formatLower}`);
+  console.log(`📦 Data type: ${data.mergedRecords ? 'Merged Records' : 'Structured Data'}`);
+
+  try {
+    let fileBuffer, contentType, extension, defaultFilename;
+    const records = data.mergedRecords || data.records || [];
+    const metadata = data.summary || data.metadata || {};
+
+    switch (formatLower) {
+      case 'excel':
+      case 'xlsx': {
+        // Excel export using xlsx library
+        const workbook = xlsx.utils.book_new();
+        
+        if (records.length === 0) {
+          return res.status(400).json({ error: "No records to export" });
+        }
+        
+        // Extract fields and create worksheet
+        const allFields = new Set();
+        records.forEach(record => {
+          const recordData = record.data || record;
+          Object.keys(recordData).forEach(field => allFields.add(field));
+        });
+        
+        const headers = [data.keyField || 'Key', ...Array.from(allFields)];
+        if (records[0]?.sources) headers.push('Sources', 'Conflicts');
+        
+        const rows = records.map(record => {
+          const row = [record.key || record.id || ''];
+          const recordData = record.data || record;
+          
+          Array.from(allFields).forEach(field => {
+            row.push(recordData[field] || '');
+          });
+          
+          if (record.sources) {
+            row.push((record.sources || []).join(', '));
+            row.push((record.conflicts || []).map(c => `${c.field}: ${c.values.join(' vs ')}`).join('; '));
+          }
+          
+          return row;
+        });
+        
+        const worksheet = xlsx.utils.aoa_to_sheet([headers, ...rows]);
+        worksheet['!cols'] = headers.map(() => ({ wch: 20 }));
+        
+        xlsx.utils.book_append_sheet(workbook, worksheet, 'Data');
+        
+        fileBuffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+        contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        extension = 'xlsx';
+        defaultFilename = 'export-data.xlsx';
+        break;
+      }
+
+      case 'word':
+      case 'docx': {
+        // Word export using docx library
+        const paragraphs = [
+          new Paragraph({
+            children: [new TextRun({ text: options.title || 'Exported Data', bold: true, size: 32 })],
+          }),
+          new Paragraph({ text: '' }),
+        ];
+
+        if (records.length > 0) {
+          // Create table
+          const allFields = new Set();
+          records.forEach(record => {
+            const recordData = record.data || record;
+            Object.keys(recordData).forEach(field => allFields.add(field));
+          });
+
+          const headers = [data.keyField || 'Key', ...Array.from(allFields)];
+          
+          const tableRows = [
+            new TableRow({
+              children: headers.map(h => new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: h, bold: true })] })] })),
+            }),
+            ...records.map(record => {
+              const recordData = record.data || record;
+              const cells = [record.key || record.id || ''];
+              Array.from(allFields).forEach(field => {
+                cells.push(String(recordData[field] || ''));
+              });
+              return new TableRow({
+                children: cells.map(c => new TableCell({ children: [new Paragraph(String(c))] })),
+              });
+            }),
+          ];
+
+          const table = new Table({ rows: tableRows });
+          const doc = new Document({
+            sections: [{ children: [...paragraphs, table] }],
+          });
+
+          fileBuffer = await Packer.toBuffer(doc);
+        } else {
+          paragraphs.push(new Paragraph({ text: 'No data to export' }));
+          const doc = new Document({ sections: [{ children: paragraphs }] });
+          fileBuffer = await Packer.toBuffer(doc);
+        }
+
+        contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        extension = 'docx';
+        defaultFilename = 'export-data.docx';
+        break;
+      }
+
+      case 'pdf': {
+        // PDF export using jsPDF
+        const doc = new jsPDF();
+        
+        doc.setFontSize(16);
+        doc.text(options.title || 'Exported Data', 14, 20);
+        
+        if (records.length > 0) {
+          const allFields = new Set();
+          records.forEach(record => {
+            const recordData = record.data || record;
+            Object.keys(recordData).forEach(field => allFields.add(field));
+          });
+
+          const headers = [data.keyField || 'Key', ...Array.from(allFields)];
+          const rows = records.map(record => {
+            const recordData = record.data || record;
+            const row = [record.key || record.id || ''];
+            Array.from(allFields).forEach(field => {
+              row.push(String(recordData[field] || ''));
+            });
+            return row;
+          });
+
+          doc.autoTable({
+            head: [headers],
+            body: rows,
+            startY: 30,
+            styles: { fontSize: 8, cellPadding: 2 },
+            headStyles: { fillColor: [66, 139, 202] },
+          });
+        } else {
+          doc.setFontSize(12);
+          doc.text('No data to export', 14, 40);
+        }
+
+        fileBuffer = Buffer.from(doc.output('arraybuffer'));
+        contentType = 'application/pdf';
+        extension = 'pdf';
+        defaultFilename = 'export-data.pdf';
+        break;
+      }
+
+      case 'powerpoint':
+      case 'pptx': {
+        // PowerPoint export using pptxgenjs (dynamic import)
+        const pptxgenjs = await import('pptxgenjs');
+        const pptxgen = pptxgenjs.default || pptxgenjs;
+        const pptx = new pptxgen();
+        
+        // Title slide
+        const titleSlide = pptx.addSlide();
+        titleSlide.addText(options.title || 'Exported Data', {
+          x: 1, y: 2, w: 8, h: 1,
+          fontSize: 32, bold: true, color: '363636', align: 'center'
+        });
+
+        if (records.length > 0) {
+          const allFields = new Set();
+          records.forEach(record => {
+            const recordData = record.data || record;
+            Object.keys(recordData).forEach(field => allFields.add(field));
+          });
+
+          const headers = [data.keyField || 'Key', ...Array.from(allFields)];
+          const rows = records.map(record => {
+            const recordData = record.data || record;
+            const row = [record.key || record.id || ''];
+            Array.from(allFields).forEach(field => {
+              row.push(String(recordData[field] || ''));
+            });
+            return row;
+          });
+
+          // Data slide with table
+          const dataSlide = pptx.addSlide();
+          dataSlide.addText('Data Table', {
+            x: 0.5, y: 0.5, w: 9, h: 0.5,
+            fontSize: 18, bold: true, color: '363636'
+          });
+
+          const tableData = [headers, ...rows.slice(0, 10)]; // Limit to 10 rows per slide
+          dataSlide.addTable(tableData, {
+            x: 0.5, y: 1.2, w: 9, h: 4.5,
+            fontSize: 10,
+            border: { pt: 1, color: 'CFCFCF' },
+            fill: { color: 'F7F7F7' },
+            color: '363636',
+          });
+
+          if (rows.length > 10) {
+            dataSlide.addText(`Showing 10 of ${rows.length} records`, {
+              x: 0.5, y: 6, w: 9, h: 0.3,
+              fontSize: 10, color: '999999', align: 'center'
+            });
+          }
+        } else {
+          titleSlide.addText('No data to export', {
+            x: 1, y: 3.5, w: 8, h: 0.5,
+            fontSize: 16, color: '999999', align: 'center'
+          });
+        }
+
+        fileBuffer = await pptx.write({ outputType: 'nodebuffer' });
+        contentType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+        extension = 'pptx';
+        defaultFilename = 'export-data.pptx';
+        break;
+      }
+
+      case 'csv': {
+        // CSV export
+        if (records.length === 0) {
+          return res.status(400).json({ error: "No records to export" });
+        }
+
+        const allFields = new Set();
+        records.forEach(record => {
+          const recordData = record.data || record;
+          Object.keys(recordData).forEach(field => allFields.add(field));
+        });
+
+        const headers = [data.keyField || 'Key', ...Array.from(allFields)];
+        const csvRows = [headers.join(',')];
+
+        records.forEach(record => {
+          const recordData = record.data || record;
+          const row = [record.key || record.id || ''];
+          Array.from(allFields).forEach(field => {
+            const value = String(recordData[field] || '');
+            // Escape commas and quotes
+            row.push(value.includes(',') || value.includes('"') ? `"${value.replace(/"/g, '""')}"` : value);
+          });
+          csvRows.push(row.join(','));
+        });
+
+        fileBuffer = Buffer.from(csvRows.join('\n'), 'utf-8');
+        contentType = 'text/csv';
+        extension = 'csv';
+        defaultFilename = 'export-data.csv';
+        break;
+      }
+
+      case 'json': {
+        // JSON export
+        const exportData = {
+          exportDate: new Date().toISOString(),
+          format: 'json',
+          metadata: metadata,
+          data: records,
+        };
+
+        fileBuffer = Buffer.from(JSON.stringify(exportData, null, 2), 'utf-8');
+        contentType = 'application/json';
+        extension = 'json';
+        defaultFilename = 'export-data.json';
+        break;
+      }
+
+      default:
+        return res.status(400).json({ 
+          error: `Unsupported format: ${format}. Supported formats: excel, word, pdf, powerpoint, csv, json` 
+        });
+    }
+
+    const exportFilename = filename || `${defaultFilename.replace(/\.\w+$/, '')}-${Date.now()}.${extension}`;
+    
+    console.log(`✅ ${formatLower.toUpperCase()} file created: ${exportFilename} (${fileBuffer.length} bytes)\n`);
+    
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${exportFilename}"`);
+    res.setHeader('Content-Length', fileBuffer.length);
+    
+    res.send(fileBuffer);
+
+  } catch (err) {
+    console.error(`❌ ${formatLower.toUpperCase()} export error:`, err.message);
+    res.status(500).json({ 
+      error: `Failed to create ${formatLower} file: ${err.message}` 
+    });
+  }
+});
+
+/**
+ * Analysis Templates Endpoint
+ * GET /analyze/templates - Get available analysis templates
+ * 
+ * Response:
+ * @returns {Array} List of available analysis templates with descriptions
+ */
+app.get("/analyze/templates", authenticate, async (req, res) => {
+  try {
+    const templates = multiDocAnalysis.getAnalysisTemplates();
+    res.json({ success: true, templates });
+  } catch (err) {
+    console.error("❌ Templates fetch error:", err.message);
+    res.status(500).json({ 
+      error: "Failed to fetch templates: " + err.message 
+    });
+  }
+});
+
 /**
  * Export Express app for testing and external usage
  */
@@ -1697,7 +2313,14 @@ if (process.env.NODE_ENV !== 'test') {
     console.log(`   POST ${PORT}/analyze/template - Run question templates`);
     console.log(`   POST ${PORT}/analyze/entities - Extract named entities`);
     console.log(`   POST ${PORT}/analyze/follow-ups - Generate follow-up questions`);
-    console.log(`\n💚 Health Check: http://localhost:${PORT}/health`);
+    console.log(`\n� Multi-Document Intelligence Endpoints:`);
+    console.log(`   POST ${PORT}/analyze/screen-resumes - Screen resumes by requirements`);
+    console.log(`   POST ${PORT}/analyze/merge-excel - Merge Excel files by common key`);
+    console.log(`   POST ${PORT}/analyze/compare-multi - Compare multiple documents`);
+    console.log(`   POST ${PORT}/analyze/extract-data - Extract structured data`);
+    console.log(`   POST ${PORT}/analyze/export-excel - Export merged data as Excel file`);
+    console.log(`   GET  ${PORT}/analyze/templates - Get analysis templates`);
+    console.log(`\n�💚 Health Check: http://localhost:${PORT}/health`);
     console.log(`⚡ Expected response time: 2-5 seconds`);
     console.log(`📊 Max file size: 50MB`);
     console.log(`📄 Officially supported formats: ${supportedFormats.length} types`);

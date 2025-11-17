@@ -237,6 +237,13 @@ const Sidebar = ({ showDashboard = false, onToggleDashboard }) => {
     
     console.log(`✅ Upload complete: ${updates.successCount} successful, ${updates.errorCount} failed`);
     
+    // Show multi-document notification if multiple files uploaded
+    if (updates.successCount > 1) {
+      console.log(`💡 TIP: You uploaded ${updates.successCount} documents. Click the "🚀 Smart Analysis" button in the header to compare, merge, or analyze them together!`);
+      // Optionally show a toast notification
+      dispatch(setError(null)); // Clear any previous errors
+    }
+    
   }, [dispatch]);
 
   /**

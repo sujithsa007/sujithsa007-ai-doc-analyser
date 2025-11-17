@@ -122,6 +122,12 @@
   animation: slideUp 0.3s ease-out;
 }
 
+/* Larger modal for multi-document analysis */
+.modal-large {
+  max-width: 1400px;
+  width: 95%;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;

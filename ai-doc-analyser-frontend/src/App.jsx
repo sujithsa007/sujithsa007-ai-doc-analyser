@@ -34,32 +34,60 @@ import './App.css';
  * - Document Dashboard for analytics
  * - Template Selector modal for batch analysis
  * - Auto-authentication on startup
+ * - Automatic multi-document intelligence in regular chat
  * 
  * @returns {JSX.Element} Complete application layout
  */
 function App() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(true);
 
   // Auto-login with default admin credentials on startup
   useEffect(() => {
     const initAuth = async () => {
       try {
+        setIsAuthenticating(true);
         await autoLoginAdmin();
         console.log('Auto-authentication successful');
       } catch (error) {
         console.error('Auto-authentication failed:', error);
+      } finally {
+        setIsAuthenticating(false);
       }
     };
     initAuth();
   }, []);
+
+  // Show loading screen while authenticating
+  if (isAuthenticating) {
+    return (
+      <Provider store={store}>
+        <div className="app-container" style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          height: '100vh',
+          backgroundColor: '#f8f9fa'
+        }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '48px', marginBottom: '20px' }}>🔐</div>
+            <h2 style={{ color: '#374151', marginBottom: '10px' }}>Initializing...</h2>
+            <p style={{ color: '#6b7280' }}>Authenticating with backend</p>
+          </div>
+        </div>
+      </Provider>
+    );
+  }
 
   return (
     <Provider store={store}>
       {/* Main application container with full viewport height */}
       <div className="app-container">
         {/* Application header */}
-        <Header onOpenTemplates={() => setShowTemplates(true)} />
+        <Header 
+          onOpenTemplates={() => setShowTemplates(true)}
+        />
         
         {/* Main content area with sidebar and chat */}
         <div className="app-main">

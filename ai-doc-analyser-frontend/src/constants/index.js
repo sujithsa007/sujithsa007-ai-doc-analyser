@@ -14,13 +14,11 @@ export const API_CONFIG = {
   REQUEST_TIMEOUT: 120000, // 2 minutes for AI processing
   HEALTH_CHECK_TIMEOUT: 5000, // 5 seconds for health checks
   UPLOAD_TIMEOUT: 300000, // 5 minutes for large file uploads with OCR
-  QUOTA_CHECK_TIMEOUT: 5000, // 5 seconds for quota checks
 };
 
 export const API_ENDPOINTS = {
   ASK: '/ask',
   HEALTH: '/health',
-  QUOTA: '/quota',
   UPLOAD: '/upload',
 };
 

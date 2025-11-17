@@ -10,8 +10,9 @@
  * - Performance optimized rendering
  */
 
-import React, { useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
+import { hasMergedData, downloadFromResponse } from '../services/exportService';
 
 /**
  * Individual Message Component
@@ -21,6 +22,24 @@ const MessageBubble = React.memo(({ message, index }) => {
   const isUser = message.role === 'user';
   const isError = message.isError;
   const isRateLimitError = message.isRateLimitError;
+  const [isDownloading, setIsDownloading] = useState(false);
+  
+  // Check if this AI message contains merged data
+  const showExcelDownload = !isUser && !isError && hasMergedData(message.content);
+  
+  // Handle file download with auto-format detection
+  const handleDownloadFile = async () => {
+    try {
+      setIsDownloading(true);
+      await downloadFromResponse(message.content);
+      alert('✅ File downloaded successfully!');
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert(`❌ Download failed: ${error.message}`);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
   
   return (
     <div
@@ -59,11 +78,41 @@ const MessageBubble = React.memo(({ message, index }) => {
             fontSize: '15px',
             lineHeight: '1.5',
             whiteSpace: 'pre-wrap',
-            marginBottom: message.timestamp ? '8px' : 0,
+            marginBottom: message.timestamp || showExcelDownload ? '8px' : 0,
           }}
         >
           {message.content}
         </div>
+        
+        {/* Download Button */}
+        {showExcelDownload && (
+          <button
+            onClick={handleDownloadFile}
+            disabled={isDownloading}
+            style={{
+              marginTop: '12px',
+              padding: '8px 16px',
+              backgroundColor: isDownloading ? '#9ca3af' : '#10b981',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: isDownloading ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            }}
+            onMouseOver={(e) => !isDownloading && (e.target.style.backgroundColor = '#059669')}
+            onMouseOut={(e) => !isDownloading && (e.target.style.backgroundColor = '#10b981')}
+          >
+            <span role="img" aria-label="download">📥</span>
+            {isDownloading ? 'Downloading...' : 'Download File'}
+          </button>
+        )}
+        
         {message.timestamp && (
           <div
             style={{

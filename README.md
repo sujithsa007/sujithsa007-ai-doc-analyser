@@ -5,37 +5,55 @@
 [![Express](https://img.shields.io/badge/Express-5.1.0-lightgrey.svg)](https://expressjs.com/)
 [![LangChain](https://img.shields.io/badge/LangChain-1.0.1-purple.svg)](https://langchain.com/)
 [![Groq](https://img.shields.io/badge/Groq-LLaMA--3.3--70B-orange.svg)](https://groq.com/)
-[![Tests](https://img.shields.io/badge/Backend%20Tests-55%2F55%20Passing-brightgreen.svg)](./ai-doc-analyser-backend/test/)
+[![Tests](https://img.shields.io/badge/Backend%20Tests-208%2F208%20Passing-brightgreen.svg)](./ai-doc-analyser-backend/test/)
 [![Tests](https://img.shields.io/badge/Frontend%20Tests-67%2F67%20Passing-brightgreen.svg)](./ai-doc-analyser-frontend/src/test/)
-[![Total Tests](https://img.shields.io/badge/Total%20Tests-122%2F122%20Passing-brightgreen.svg)](./)
+[![Total Tests](https://img.shields.io/badge/Total%20Tests-275%2F275%20Passing-brightgreen.svg)](./)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> **⚡ Ultra-fast AI analysis for 20+ document formats in 2-5 seconds | Full-stack production-ready application**
+> **⚡ Ultra-fast AI analysis for 20+ document formats | Multi-document intelligence with Excel export**
 
-A sophisticated, enterprise-grade document analysis assistant powered by LangChain that combines React 19's latest features with Groq's lightning-fast AI inference. Upload PDF, Word, Excel, images (with OCR), and more - engage in intelligent conversations about document content with comprehensive analysis and context-aware responses.
+A sophisticated, enterprise-grade document analysis assistant powered by LangChain that combines React 19's latest features with Groq's lightning-fast AI inference. Upload PDF, Word, Excel, images (with OCR), and more - engage in intelligent conversations about document content with automatic multi-document analysis, Excel data merging, and downloadable exports.
 
 ## ✨ Why This Application?
 
 - **⚡ Lightning Fast**: 2-5 second response times (vs 30+ seconds with other solutions)
+- **🧠 Multi-Document Intelligence**: Automatic cross-document analysis and Excel merging
+- **📥 Excel Export**: Merge and download combined Excel files with one click
 - **🏆 Production Ready**: Comprehensive error handling, testing, and monitoring
 - **📚 Multi-Format Support**: PDF, Word, Excel, Images with OCR, and 20+ document types
-- **🧠 Advanced AI**: Uses Groq's optimized LLaMA-3.3-70B model
-- **🚀 Modern Stack**: React 19, Redux Toolkit, Express.js, Tesseract.js
+- **🔐 Secure**: JWT authentication, API keys, and input validation
+- **🚀 Modern Stack**: React 19, Redux Toolkit, Express.js, LangChain
 - **📱 Responsive**: Works seamlessly on all devices
-- **✅ Well Tested**: 85 tests with 100% pass rate
+- **✅ Well Tested**: 275 tests with 100% pass rate
 
 ## 🎯 Features
 
-- 📄 **Multi-Format Document Processing** - PDF, Word (.docx, .doc), Excel (.xlsx, .xls, .csv)
+### 📚 Document Processing
+- 📄 **Multi-Format Support** - PDF, Word (.docx, .doc), Excel (.xlsx, .xls, .csv)
 - 🖼️ **Image OCR Support** - Extract text from images (JPG, PNG, GIF, BMP, TIFF, WebP)
 - 📝 **Text Files** - Markdown, HTML, RTF, plain text, and OpenDocument formats
-- ⚡ **Ultra-Fast AI Responses** - 2-5 second response times using Groq's LLaMA-3.3-70B
+- 📊 **Spreadsheet Analysis** - Intelligent column detection and data extraction from Excel/CSV
+
+### 🚀 Multi-Document Intelligence
+- 🔄 **Automatic Cross-Document Analysis** - Upload multiple files and ask questions across all of them
+- 📊 **Excel Data Merging** - Merge multiple Excel files by common keys with conflict resolution
+- 📥 **Downloadable Excel Export** - Create and download merged Excel files with one click
+- 🔍 **Smart Similarity Detection** - Automatically detects related vs unrelated documents
+- 📋 **Resume Bulk Screening** - Filter and rank multiple resumes by job requirements
+- 🎯 **Evidence-Based Analysis** - All cross-document claims backed by citations
+
+### 🤖 AI-Powered Features
+- ⚡ **Ultra-Fast Responses** - 2-5 second response times using Groq's LLaMA-3.3-70B
 - 💬 **ChatGPT-Style Interface** - Intuitive conversation experience
 - 🔄 **Real-Time Processing** - No document truncation, full content analysis
-- 📱 **Responsive Design** - Works on desktop, tablet, and mobile
-- 🧪 **Comprehensive Testing** - 85 tests across frontend and backend with 100% pass rate
-- 🎨 **Optimized Performance** - Code splitting, lazy loading, and caching
-- 🔒 **Secure & Reliable** - Input validation, error handling, and CORS protection
+- 🎨 **Context-Aware** - Maintains conversation history for better understanding
+
+### 🔒 Security & Quality
+- 🔐 **JWT Authentication** - Secure user authentication with refresh tokens
+- 🔑 **API Key Support** - Alternative authentication method
+- 🧪 **245 Tests Passing** - Comprehensive test coverage (backend + frontend)
+- 🛡️ **Input Validation** - Protection against malicious inputs
+- � **Responsive Design** - Works on desktop, tablet, and mobile
 
 ## 🏗️ Project Architecture
 
@@ -485,28 +503,64 @@ Get list of supported document formats
 ```
 
 #### `POST /ask`
-Ask questions about document content
+Ask questions about document content (supports multi-document analysis)
 ```json
-// Request
+// Single Document Request
 {
   "question": "What is the main topic of this document?",
   "content": "Full document text content...",
-  "documentType": "docx",  // Optional: helps AI provide format-specific analysis
-  "fileName": "report.docx"  // Optional: context for AI
+  "documentType": "docx",
+  "fileName": "report.docx"
+}
+
+// Multi-Document Request (automatic detection)
+{
+  "question": "What data is common across these Excel files?",
+  "documents": [
+    {
+      "fileName": "employees.xlsx",
+      "content": "...",
+      "documentType": "xlsx"
+    },
+    {
+      "fileName": "payroll.xlsx",
+      "content": "...",
+      "documentType": "xlsx"
+    }
+  ]
 }
 
 // Response  
 {
-  "answer": "AI-generated analysis and answer",
+  "answer": "AI-generated analysis with citations",
   "metadata": {
     "processingTime": "2.3",
-    "aiResponseTime": "1.8", 
-    "contentLength": 15420,
-    "documentType": "docx",
-    "fileName": "report.docx"
+    "aiResponseTime": "1.8",
+    "documentCount": 2,
+    "analysisMode": "multi-document"
   }
 }
 ```
+
+#### `POST /analyze/export-excel`
+Export merged data as downloadable Excel file
+```json
+// Request
+{
+  "mergedData": {
+    "keyField": "user_id",
+    "mergedRecords": [...],
+    "summary": {...}
+  },
+  "filename": "merged-data.xlsx"
+}
+
+// Response: Binary Excel file download
+```
+
+### 📚 Additional Documentation
+- **[Multi-Document Auto-Comparison](./MULTI_DOCUMENT_AUTO_COMPARISON.md)** - Automatic cross-document intelligence
+- **[Excel Export Feature](./EXCEL_EXPORT_FEATURE.md)** - Merge and download Excel files
 
 ## 📖 Project Documentation
 

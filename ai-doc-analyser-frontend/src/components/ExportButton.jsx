@@ -12,7 +12,7 @@ import {
   exportToText,
   exportToPDF,
   downloadFile,
-} from '../services/exportService';
+} from '../services/conversationExportService';
 import './ExportButton.css';
 
 const ExportButton = () => {
