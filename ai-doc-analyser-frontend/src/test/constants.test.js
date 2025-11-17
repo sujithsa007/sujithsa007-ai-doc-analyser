@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import * as constants from '../../constants';
+import * as constants from '../constants';
 
 describe('Constants', () => {
   describe('MESSAGE_TYPES', () => {
