@@ -670,9 +670,9 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 ### �🌐 Deployment Platforms
 
 #### Recommended Platforms:
-- **Backend**: Render.com (Free tier) - See [DEPLOY_NOW_RENDER.md](./DEPLOY_NOW_RENDER.md)
+- **Backend**: Vercel (Serverless) - See [DEPLOYMENT_VERCEL.md](./DEPLOYMENT_VERCEL.md)
 - **Frontend**: Vercel (Free tier)
-- **Alternative Backend**: Railway, AWS EC2, DigitalOcean
+- **Alternative Backend**: Render.com, AWS EC2, DigitalOcean
 - **Alternative Frontend**: Netlify, AWS S3 + CloudFront
 
 #### Quick Deploy to Render + Vercel (15 minutes):
@@ -712,7 +712,7 @@ echo "VITE_API_URL=https://your-app.onrender.com" > ai-doc-analyser-frontend/.en
 
 ### 📊 Production Environment Variables
 
-**Backend (Render/Railway):**
+**Backend (Vercel/Render):**
 ```bash
 GROQ_API_KEY=<your-groq-key>
 NODE_ENV=production
@@ -761,7 +761,7 @@ CMD ["npm", "start"]
 ```
 
 ### 🌍 Hosting Recommendations
-- **Backend**: Render (recommended), Railway, AWS EC2, DigitalOcean
+- **Backend**: Vercel Serverless (recommended), Render, AWS EC2, DigitalOcean
 - **Frontend**: Vercel (recommended), Netlify, AWS S3 + CloudFront
 - **Cost**: Free tier available on all platforms
 

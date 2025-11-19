@@ -12,8 +12,6 @@ test-results/
 coverage/
 *.test.js
 vitest.config.js
-railway.toml
-railway.json
 .git
 .gitignore
 README.md

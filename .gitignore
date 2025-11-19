@@ -52,8 +52,7 @@ temp/
 *.traineddata
 *.model
 
-# Note: package-lock.json is needed for Railway deployment (backend only)
-# Ignore package-lock in root and frontend
+# Package lock files
 package-lock.json
 ai-doc-analyser-frontend/package-lock.json
 yarn.lock
