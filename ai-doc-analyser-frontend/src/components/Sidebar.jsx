@@ -119,7 +119,7 @@ const Sidebar = ({ showDashboard = false, onToggleDashboard }) => {
     
     if (!files || files.length === 0) return;
 
-    console.log(`📁 Processing ${files.length} document file(s) in parallel for maximum speed...`);
+    if (process.env.NODE_ENV === 'development') console.debug(`📁 Processing ${files.length} document file(s) in parallel for maximum speed...`);
 
     // Update UI state immediately
     dispatch(setIsParsing(true));
@@ -128,13 +128,13 @@ const Sidebar = ({ showDashboard = false, onToggleDashboard }) => {
     
     // Clear query cache when new documents are uploaded
     queryCache.clear();
-    console.log('🗑️ Query cache cleared for new document upload');
+    if (process.env.NODE_ENV === 'development') console.debug('🗑️ Query cache cleared for new document upload');
 
     const startTime = Date.now();
 
     // Process ALL files in parallel using Promise.all
     const processingPromises = files.map(async (file, index) => {
-      console.log(`📄 Starting file ${index + 1}/${files.length}:`, file.name, `(${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+      if (process.env.NODE_ENV === 'development') console.debug(`📄 Starting file ${index + 1}/${files.length}:`, file.name, `(${(file.size / 1024 / 1024).toFixed(2)} MB)`);
 
       try {
         // Validate file
@@ -153,7 +153,7 @@ const Sidebar = ({ showDashboard = false, onToggleDashboard }) => {
           // Dynamic import to reduce initial bundle size
           const { uploadDocument } = await import('../services/apiService.js');
           
-          console.log(`📤 Uploading ${file.name} to backend (Type: ${file.type})...`);
+          if (process.env.NODE_ENV === 'development') console.debug(`📤 Uploading ${file.name} to backend (Type: ${file.type})...`);
           
           try {
             const result = await uploadDocument(file);
@@ -164,7 +164,7 @@ const Sidebar = ({ showDashboard = false, onToggleDashboard }) => {
               throw new Error(`No text content extracted from ${file.name}. The file may be empty or in an unsupported format.`);
             }
             
-            console.log('📊 Document metadata:', result?.metadata);
+            if (process.env.NODE_ENV === 'development') console.debug('📊 Document metadata:', result?.metadata);
           } catch (uploadError) {
             console.error(`❌ Backend upload error for ${file.name}:`, uploadError);
             
@@ -184,7 +184,7 @@ const Sidebar = ({ showDashboard = false, onToggleDashboard }) => {
           throw new Error(`Failed to extract text from ${file.name}. The file might be empty or corrupted.`);
         }
         
-        console.log(`✅ File ${index + 1}/${files.length} processed in ${processingTime}s - ${extractedText.length} characters extracted`);
+        if (process.env.NODE_ENV === 'development') console.debug(`✅ File ${index + 1}/${files.length} processed in ${processingTime}s - ${extractedText.length} characters extracted`);
         
         return {
           success: true,
@@ -208,7 +208,7 @@ const Sidebar = ({ showDashboard = false, onToggleDashboard }) => {
     const results = await Promise.all(processingPromises);
     
     const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`\n⚡ All ${files.length} files processed in ${totalTime}s (parallel processing)`);
+    if (process.env.NODE_ENV === 'development') console.debug(`\n⚡ All ${files.length} files processed in ${totalTime}s (parallel processing)`);
 
     // Batch Redux updates to minimize re-renders
     const updates = results.reduce((acc, result) => {
@@ -254,11 +254,11 @@ const Sidebar = ({ showDashboard = false, onToggleDashboard }) => {
       fileInputRef.current.value = '';
     }
     
-    console.log(`✅ Upload complete: ${updates.successCount} successful, ${updates.errorCount} failed`);
+    if (process.env.NODE_ENV === 'development') console.debug(`✅ Upload complete: ${updates.successCount} successful, ${updates.errorCount} failed`);
     
     // Show multi-document notification if multiple files uploaded
     if (updates.successCount > 1) {
-      console.log(`💡 TIP: You uploaded ${updates.successCount} documents. Click the "🚀 Smart Analysis" button in the header to compare, merge, or analyze them together!`);
+      if (process.env.NODE_ENV === 'development') console.debug(`💡 TIP: You uploaded ${updates.successCount} documents. Click the "🚀 Smart Analysis" button in the header to compare, merge, or analyze them together!`);
       // Optionally show a toast notification
       dispatch(setError(null)); // Clear any previous errors
     }

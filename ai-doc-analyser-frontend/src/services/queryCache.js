@@ -28,18 +28,18 @@ class QueryCache {
     const cached = this.cache.get(key);
 
     if (!cached) {
-      console.log('💨 Cache MISS:', question.substring(0, 50));
+      if (process.env.NODE_ENV === 'development') console.debug('💨 Cache MISS:', question.substring(0, 50));
       return null;
     }
 
     // Check if expired
     if (Date.now() - cached.timestamp > this.ttl) {
-      console.log('⏰ Cache EXPIRED:', question.substring(0, 50));
+      if (process.env.NODE_ENV === 'development') console.debug('⏰ Cache EXPIRED:', question.substring(0, 50));
       this.cache.delete(key);
       return null;
     }
 
-    console.log('✅ Cache HIT:', question.substring(0, 50), '(saved API call)');
+    if (process.env.NODE_ENV === 'development') console.debug('✅ Cache HIT:', question.substring(0, 50), '(saved API call)');
     return cached.response;
   }
 
@@ -53,7 +53,7 @@ class QueryCache {
     if (this.cache.size >= this.maxSize) {
       const firstKey = this.cache.keys().next().value;
       this.cache.delete(firstKey);
-      console.log('🗑️  Cache evicted oldest entry');
+      if (process.env.NODE_ENV === 'development') console.debug('🗑️  Cache evicted oldest entry');
     }
 
     this.cache.set(key, {
@@ -63,7 +63,7 @@ class QueryCache {
       documentIds
     });
 
-    console.log(`💾 Cached response for: "${question.substring(0, 50)}..." (${this.cache.size}/${this.maxSize})`);
+    if (process.env.NODE_ENV === 'development') console.debug(`💾 Cached response for: "${question.substring(0, 50)}..." (${this.cache.size}/${this.maxSize})`);
   }
 
   /**
@@ -72,7 +72,7 @@ class QueryCache {
   clear() {
     const size = this.cache.size;
     this.cache.clear();
-    console.log(`🧹 Cache cleared (${size} entries removed)`);
+    if (process.env.NODE_ENV === 'development') console.debug(`🧹 Cache cleared (${size} entries removed)`);
   }
 
   /**
@@ -90,7 +90,7 @@ class QueryCache {
       }
     }
 
-    console.log(`🧹 Cleared ${cleared} cache entries for documents:`, documentIds);
+    if (process.env.NODE_ENV === 'development') console.debug(`🧹 Cleared ${cleared} cache entries for documents:`, documentIds);
   }
 
   /**

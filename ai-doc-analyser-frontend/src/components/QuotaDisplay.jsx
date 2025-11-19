@@ -23,12 +23,12 @@ const QuotaDisplay = () => {
   const fetchQuota = async () => {
     try {
       const result = await getApiQuota();
-      console.log('📊 Quota data received:', result);
+      if (process.env.NODE_ENV === 'development') console.debug('📊 Quota data received:', result);
       setQuota(result);
       setError(null);
     } catch (err) {
       setError('Quota unavailable');
-      console.error('Quota fetch error:', err);
+      if (process.env.NODE_ENV === 'development') console.error('Quota fetch error:', err);
     } finally {
       setLoading(false);
     }
