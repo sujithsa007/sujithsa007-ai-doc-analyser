@@ -8,6 +8,7 @@
   "license": "MIT",
   "scripts": {
     "start": "node index.js",
+    "build": "echo 'No build step required for Node.js backend'",
     "dev": "node --watch index.js",
     "dev:debug": "node --inspect --watch index.js",
     "test": "vitest",

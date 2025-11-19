@@ -1,6 +1,7 @@
 {
   "version": 2,
   "name": "ai-doc-analyser-backend",
+  "buildCommand": "echo 'No build step required'",
   "builds": [
     {
       "src": "index.js",
