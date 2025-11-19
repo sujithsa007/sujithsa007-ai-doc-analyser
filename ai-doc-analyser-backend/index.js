@@ -8,17 +8,18 @@
 
 import app from './app.js';
 
-// Debug Railway environment
-console.log('\n🔍 ===== RAILWAY ENVIRONMENT DEBUG =====');
+// Debug deployment environment
+console.log('\n🔍 ===== DEPLOYMENT ENVIRONMENT DEBUG =====');
 console.log('PORT from env:', process.env.PORT);
 console.log('HOST from env:', process.env.HOST);
 console.log('NODE_ENV:', process.env.NODE_ENV);
 console.log('GROQ_API_KEY present?', !!process.env.GROQ_API_KEY);
-console.log('========================================\n');
+console.log('Platform:', process.env.VERCEL ? 'Vercel' : process.env.RAILWAY_ENVIRONMENT ? 'Railway' : 'Local');
+console.log('==========================================\n');
 
 // Server configuration
 const PORT = process.env.PORT || 5000;
-const HOST = process.env.HOST || '0.0.0.0';  // Changed to 0.0.0.0 for Railway/cloud deployments
+const HOST = process.env.HOST || '0.0.0.0';  // 0.0.0.0 for cloud deployments (Vercel/Railway)
 
 // Start server with enhanced error handling
 try {
@@ -54,3 +55,6 @@ try {
   console.error('❌ Failed to start server:', error);
   process.exit(1);
 }
+
+// Export app for Vercel serverless functions
+export default app;
