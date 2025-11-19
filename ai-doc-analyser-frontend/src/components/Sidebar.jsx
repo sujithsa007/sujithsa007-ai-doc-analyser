@@ -152,10 +152,29 @@ const Sidebar = ({ showDashboard = false, onToggleDashboard }) => {
           // Use backend API for all other formats (Word, Excel, Images, etc.)
           // Dynamic import to reduce initial bundle size
           const { uploadDocument } = await import('../services/apiService.js');
-          const result = await uploadDocument(file);
-          extractedText = result?.text || '';
           
-          console.log('📊 Document metadata:', result?.metadata);
+          console.log(`📤 Uploading ${file.name} to backend (Type: ${file.type})...`);
+          
+          try {
+            const result = await uploadDocument(file);
+            extractedText = result?.text || result?.content || '';
+            
+            if (!extractedText) {
+              console.warn(`⚠️ No text extracted from ${file.name}. Backend response:`, result);
+              throw new Error(`No text content extracted from ${file.name}. The file may be empty or in an unsupported format.`);
+            }
+            
+            console.log('📊 Document metadata:', result?.metadata);
+          } catch (uploadError) {
+            console.error(`❌ Backend upload error for ${file.name}:`, uploadError);
+            
+            // Check if it's an authentication error
+            if (uploadError.message?.includes('401') || uploadError.message?.toLowerCase().includes('unauthorized') || uploadError.message?.toLowerCase().includes('authentication')) {
+              throw new Error(`Authentication required. Please log in to upload ${file.name}. (PDFs work without login because they're processed in your browser, but ${file.type.split('/')[0]} files require server processing.)`);
+            }
+            
+            throw uploadError;
+          }
         }
 
         const processingTime = ((Date.now() - fileStartTime) / 1000).toFixed(1);
