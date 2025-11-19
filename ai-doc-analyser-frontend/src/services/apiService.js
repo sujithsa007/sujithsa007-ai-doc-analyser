@@ -58,11 +58,13 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`);
+    if (process.env.NODE_ENV === 'development' && !config.headers['X-SILENT-LOG']) {
+      console.debug(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
+    }
     return config;
   },
   (error) => {
-    console.error('❌ Request Error:', error);
+    if (process.env.NODE_ENV === 'development') console.error('Request Error:', error);
     return Promise.reject(error);
   }
 );
@@ -71,7 +73,7 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => {
     const duration = Date.now() - response.config.metadata.startTime;
-    console.log(`✅ API Response: ${response.status} in ${duration}ms`);
+    if (process.env.NODE_ENV === 'development') console.debug(`API Response: ${response.status} in ${duration}ms`);
     return response;
   },
   async (error) => {
@@ -88,7 +90,7 @@ apiClient.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN);
         if (refreshToken) {
-          console.log('🔄 Attempting to refresh access token...');
+          if (process.env.NODE_ENV === 'development') console.debug('Attempting to refresh access token...');
           const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
           
           const { accessToken, refreshToken: newRefreshToken } = response.data;
@@ -102,7 +104,7 @@ apiClient.interceptors.response.use(
           return apiClient(error.config);
         }
       } catch (refreshError) {
-        console.error('❌ Token refresh failed:', refreshError);
+        if (process.env.NODE_ENV === 'development') console.error('Token refresh failed:', refreshError);
         // Clear auth data and redirect to login
         logout();
         throw new Error('Session expired. Please login again.');
@@ -503,16 +505,7 @@ export const isAuthenticated = () => {
  * Auto-login with default admin credentials (temporary for testing)
  * This should be removed in production
  */
-export const autoLoginAdmin = async () => {
-  try {
-    console.log('🔐 Auto-logging in with default admin...');
-    await login('admin@aidoc.local', 'Machten@007');
-    return true;
-  } catch (error) {
-    console.error('❌ Auto-login failed:', error);
-    return false;
-  }
-};
+// Auto-login removed for security: tests should perform explicit login or mock auth tokens
 
 // Export the configured client for testing and advanced usage (e.g., custom stubbing)
 export { apiClient };

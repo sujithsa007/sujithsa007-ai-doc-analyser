@@ -15,6 +15,18 @@
 
 A sophisticated, enterprise-grade document analysis assistant powered by LangChain that combines React 19's latest features with Groq's lightning-fast AI inference. Upload PDF, Word, Excel, images (with OCR), and more - engage in intelligent conversations about document content with automatic multi-document analysis, Excel data merging, and downloadable exports.
 
+Important recent changes:
+
+- **Auto-login removed**: The frontend no longer performs an automatic admin login on startup. Manual authentication (or test harness mocking) is required for flows that need an authenticated session. This improves security and avoids embedding credentials in source.
+- **Development-only logging**: Verbose console logging in frontend service layers has been gated behind `process.env.NODE_ENV === 'development'` so production builds are quieter and avoid exposing sensitive details.
+
+Running tests:
+
+- Backend: `cd ai-doc-analyser-backend && npm test`
+- Frontend: `cd ai-doc-analyser-frontend && npm test`
+
+If tests that previously relied on auto-login fail, update the test setup to perform an explicit login (or mock the auth token) before exercising protected endpoints.
+
 ## ✨ Why This Application?
 
 - **⚡ Lightning Fast**: 2-5 second response times (vs 30+ seconds with other solutions)
@@ -664,8 +676,8 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
    - `CORS_ORIGINS` - Your frontend URL
 
 3. **Change Default Password:**
-   - Default: `admin@aidoc.local` / `Machten@007`
-   - **Change immediately after deployment!**
+  - Default admin credentials must not be stored in the repository. Generate strong passwords and update environment/configuration during deployment.
+  - **Change immediately after deployment!**
 
 ### �🌐 Deployment Platforms
 

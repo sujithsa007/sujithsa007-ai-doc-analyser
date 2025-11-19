@@ -328,25 +328,28 @@ class UserService {
   async seedDefaultUser(authService) {
     if (users.size > 0) return; // Only seed if no users exist
 
-    console.log('🌱 Seeding default admin user...');
-    
+    // Only seed in development to avoid creating default credentials in production
+    if (process.env.NODE_ENV !== 'development') return;
+
+    console.log('🌱 Seeding default admin user (development only)...');
+
     // This will be called from authService to avoid circular dependency
     const defaultUser = {
       email: 'admin@aidoc.local',
       username: 'admin',
-      password: 'Machten@007', // Changed via quickPasswordReset.js
+      password: process.env.DEV_DEFAULT_ADMIN_PASSWORD || null,
       role: 'admin'
     };
 
+    if (!defaultUser.password) {
+      console.warn('⚠️ No DEV_DEFAULT_ADMIN_PASSWORD set - skipping default admin creation');
+      return;
+    }
+
     try {
       const result = await authService.register(defaultUser);
-      
-    //   // Mask password for security - show only first 2 characters
-    //   const maskedPassword = defaultUser.password.substring(0, 2) + '*'.repeat(Math.max(0, defaultUser.password.length - 2));
-      
       console.log('✅ Default admin user created:', result.user.email);
       console.log('   Username:', result.user.username);
-      console.log('   Password:', defaultUser.password, '⚠️  CHANGE THIS!');
       console.log('   API Key:', result.user.apiKey);
       return result.user;
     } catch (error) {

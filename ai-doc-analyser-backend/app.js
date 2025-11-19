@@ -33,6 +33,14 @@ import { userService } from "./services/userService.js";
 // Load environment variables from .env file
 dotenv.config();
 
+// Reduce noisy logging in non-development environments
+const _isDev = process.env.NODE_ENV === 'development';
+if (!_isDev) {
+  // Silence verbose console.log calls in production/test to avoid leaking sensitive info
+  // Keep console.error intact for real errors.
+  console.log = () => {};
+}
+
 // Initialize Express application
 const app = express();
 
