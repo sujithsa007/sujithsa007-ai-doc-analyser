@@ -1,5 +1,6 @@
 # 🤖 AI Document Analyser
 
+[![CI Status](https://github.com/sujithsa007/sujithsa007-ai-doc-analyser/actions/workflows/ci.yml/badge.svg)](https://github.com/sujithsa007/sujithsa007-ai-doc-analyser/actions/workflows/ci.yml)
 [![React](https://img.shields.io/badge/React-19.0.0-blue.svg)](https://reactjs.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-20.19%2B-green.svg)](https://nodejs.org/)
 [![Express](https://img.shields.io/badge/Express-5.1.0-lightgrey.svg)](https://expressjs.com/)
@@ -643,8 +644,9 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 **� Ready to deploy to production? Follow these guides:**
 
 1. **[DEPLOY_NOW_RENDER.md](./DEPLOY_NOW_RENDER.md)** - ⚡ **5-minute deployment guide for Render.com + Vercel**
-2. **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Complete deployment documentation  
-3. **[DEPLOYMENT_SECURITY.md](./DEPLOYMENT_SECURITY.md)** - Security best practices and JWT configuration
+2. **[DEPLOYMENT_VERCEL.md](./DEPLOYMENT_VERCEL.md)** - ⚡ **Vercel Serverless Deployment Guide (New)**
+3. **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Complete deployment documentation  
+4. **[DEPLOYMENT_SECURITY.md](./DEPLOYMENT_SECURITY.md)** - Security best practices and JWT configuration
 
 ### 🔐 Critical: JWT Authentication Required
 
