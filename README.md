@@ -1,4 +1,4 @@
-# 🤖 AI Document Analyser
+# 🤖 AI Document Analyser v3.0.0
 
 [![CI Status](https://github.com/sujithsa007/sujithsa007-ai-doc-analyser/actions/workflows/ci.yml/badge.svg)](https://github.com/sujithsa007/sujithsa007-ai-doc-analyser/actions/workflows/ci.yml)
 [![React](https://img.shields.io/badge/React-19.0.0-blue.svg)](https://reactjs.org/)
