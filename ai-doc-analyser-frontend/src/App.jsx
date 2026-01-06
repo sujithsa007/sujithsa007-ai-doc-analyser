@@ -20,7 +20,6 @@ import ChatMessages from './components/ChatMessages';
 import MessageInput from './components/MessageInput';
 import DocumentDashboard from './components/DocumentDashboard';
 import TemplateSelector from './components/TemplateSelector';
-import { autoLoginAdmin } from './services/apiService';
 import './App.css';
 
 /**
@@ -41,7 +40,46 @@ import './App.css';
 function App() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
-  // No auto-login in production; require manual login via UI
+  const [isAuthenticating, setIsAuthenticating] = useState(true);
+
+  // Auto-login for development
+  useEffect(() => {
+    const autoLogin = async () => {
+      try {
+        const { isAuthenticated, login } = await import('./services/apiService.js');
+        
+        if (!isAuthenticated()) {
+          console.log('🔐 Auto-logging in with default admin credentials...');
+          await login('admin@aidoc.local', 'Admin123!');
+          console.log('✅ Auto-login successful');
+        } else {
+          console.log('✅ Already authenticated');
+        }
+      } catch (error) {
+        console.error('❌ Auto-login failed:', error.message);
+        console.warn('⚠️ You may need to manually log in or check backend seeding');
+      } finally {
+        setIsAuthenticating(false);
+      }
+    };
+
+    autoLogin();
+  }, []);
+
+  if (isAuthenticating) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        fontSize: '18px',
+        color: '#666'
+      }}>
+        🔐 Authenticating...
+      </div>
+    );
+  }
 
   return (
     <Provider store={store}>
